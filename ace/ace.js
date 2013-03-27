@@ -167,7 +167,7 @@ exportAce(ACE_NAMESPACE);
 
 })();
 
-ace.define('ace/ace', ['require', 'exports', 'module' , 'ace/lib/fixoldbrowsers', 'ace/lib/dom', 'ace/lib/event', 'ace/editor', 'ace/edit_session', 'ace/undomanager', 'ace/virtual_renderer', 'ace/multi_select', 'ace/worker/worker_client', 'ace/keyboard/hash_handler', 'ace/placeholder', 'ace/mode/folding/fold_mode', 'ace/theme/textmate', 'ace/snippets', 'ace/config'], function(require, exports, module) {
+ace.define('ace/ace', ['require', 'exports', 'module' , 'ace/lib/fixoldbrowsers', 'ace/lib/dom', 'ace/lib/event', 'ace/editor', 'ace/edit_session', 'ace/undomanager', 'ace/virtual_renderer', 'ace/multi_select', 'ace/worker/worker_client', 'ace/keyboard/hash_handler', 'ace/placeholder', 'ace/snippets', 'ace/mode/folding/fold_mode', 'ace/theme/textmate', 'ace/config'], function(require, exports, module) {
 
 
 require("./lib/fixoldbrowsers");
@@ -183,9 +183,9 @@ var MultiSelect = require("./multi_select").MultiSelect;
 require("./worker/worker_client");
 require("./keyboard/hash_handler");
 require("./placeholder");
+require("./snippets");
 require("./mode/folding/fold_mode");
 require("./theme/textmate");
-require("./snippets");
 
 exports.config = require("./config");
 exports.require = require;
@@ -2974,7 +2974,7 @@ var Editor = function(renderer, session) {
         this._emit("destroy", this);
     };
     this.setAutoScrollEditorIntoView = function(enable) {
-        if (enable === true)
+        if (enable === false)
             return;
         var rect;
         var self = this;
@@ -3015,7 +3015,7 @@ var Editor = function(renderer, session) {
             }
         });
         this.setAutoScrollEditorIntoView = function(enable) {
-            if (enable === false)
+            if (enable === true)
                 return;
             delete this.setAutoScrollEditorIntoView;
             this.removeEventListener("changeSelection", onChangeSelection);
@@ -6488,7 +6488,7 @@ config.defineOptions(EditSession.prototype, "session", {
     },
     newLineMode: {
         set: function(val) {this.doc.setNewLineMode(val)},
-        get: function() {return this.doc.getNewLineMode(newLineMode)},
+        get: function() {return this.doc.getNewLineMode()},
         handlesSet: true
     }
 });
@@ -7453,8 +7453,12 @@ var Tokenizer = function(rules) {
             var adjustedregex = rule.regex;
             var matchcount = new RegExp("(?:(" + adjustedregex + ")|(.))").exec("a").length - 2;
             if (Array.isArray(rule.token)) {
-                if (rule.token.length == 1) {
+                if (rule.token.length == 1 || matchcount == 1) {
                     rule.token = rule.token[0];
+                } else if (matchcount - 1 != rule.token.length) {
+                    throw new Error("number of classes and regexp groups in '" + 
+                        rule.token + "'\n'" + rule.regex +  "' doesn't match\n"
+                        + (matchcount - 1) + "!=" + rule.token.length);
                 } else {
                     rule.tokenArray = rule.token;
                     rule.onMatch = this.$arrayTokens;
@@ -7516,11 +7520,6 @@ var Tokenizer = function(rules) {
         var values = this.splitRegex.exec(str);
         var tokens = [];
         var types = this.tokenArray;
-        if (types.length != values.length - 1) {
-            if (window.console)
-                console.error(types , values, str, this.splitRegex, this);
-            return [{type: "error.invalid", value: str}];
-        }
         for (var i = 0, l = types.length; i < l; i++) {
             if (values[i + 1])
                 tokens[tokens.length] = {
@@ -14926,229 +14925,6 @@ var PlaceHolder = function(session, length, pos, others, mainClass, othersClass)
 exports.PlaceHolder = PlaceHolder;
 });
 
-ace.define('ace/mode/folding/fold_mode', ['require', 'exports', 'module' , 'ace/range'], function(require, exports, module) {
-
-
-var Range = require("../../range").Range;
-
-var FoldMode = exports.FoldMode = function() {};
-
-(function() {
-
-    this.foldingStartMarker = null;
-    this.foldingStopMarker = null;
-    this.getFoldWidget = function(session, foldStyle, row) {
-        var line = session.getLine(row);
-        if (this.foldingStartMarker.test(line))
-            return "start";
-        if (foldStyle == "markbeginend"
-                && this.foldingStopMarker
-                && this.foldingStopMarker.test(line))
-            return "end";
-        return "";
-    };
-
-    this.getFoldWidgetRange = function(session, foldStyle, row) {
-        return null;
-    };
-
-    this.indentationBlock = function(session, row, column) {
-        var re = /\S/;
-        var line = session.getLine(row);
-        var startLevel = line.search(re);
-        if (startLevel == -1)
-            return;
-
-        var startColumn = column || line.length;
-        var maxRow = session.getLength();
-        var startRow = row;
-        var endRow = row;
-
-        while (++row < maxRow) {
-            var level = session.getLine(row).search(re);
-
-            if (level == -1)
-                continue;
-
-            if (level <= startLevel)
-                break;
-
-            endRow = row;
-        }
-
-        if (endRow > startRow) {
-            var endColumn = session.getLine(endRow).length;
-            return new Range(startRow, startColumn, endRow, endColumn);
-        }
-    };
-
-    this.openingBracketBlock = function(session, bracket, row, column, typeRe) {
-        var start = {row: row, column: column + 1};
-        var end = session.$findClosingBracket(bracket, start, typeRe);
-        if (!end)
-            return;
-
-        var fw = session.foldWidgets[end.row];
-        if (fw == null)
-            fw = this.getFoldWidget(session, end.row);
-
-        if (fw == "start" && end.row > start.row) {
-            end.row --;
-            end.column = session.getLine(end.row).length;
-        }
-        return Range.fromPoints(start, end);
-    };
-
-    this.closingBracketBlock = function(session, bracket, row, column, typeRe) {
-        var end = {row: row, column: column};
-        var start = session.$findOpeningBracket(bracket, end);
-
-        if (!start)
-            return;
-
-        start.column++;
-        end.column--;
-
-        return  Range.fromPoints(start, end);
-    };
-}).call(FoldMode.prototype);
-
-});
-
-ace.define('ace/theme/textmate', ['require', 'exports', 'module' , 'ace/lib/dom'], function(require, exports, module) {
-
-
-exports.isDark = false;
-exports.cssClass = "ace-tm";
-exports.cssText = ".ace-tm .ace_gutter {\
-background: #f0f0f0;\
-color: #333;\
-}\
-.ace-tm .ace_print-margin {\
-width: 1px;\
-background: #e8e8e8;\
-}\
-.ace-tm .ace_fold {\
-background-color: #6B72E6;\
-}\
-.ace-tm .ace_scroller {\
-background-color: #FFFFFF;\
-}\
-.ace-tm .ace_cursor {\
-border-left: 2px solid black;\
-}\
-.ace-tm .ace_overwrite-cursors .ace_cursor {\
-border-left: 0px;\
-border-bottom: 1px solid black;\
-}\
-.ace-tm .ace_invisible {\
-color: rgb(191, 191, 191);\
-}\
-.ace-tm .ace_storage,\
-.ace-tm .ace_keyword {\
-color: blue;\
-}\
-.ace-tm .ace_constant {\
-color: rgb(197, 6, 11);\
-}\
-.ace-tm .ace_constant.ace_buildin {\
-color: rgb(88, 72, 246);\
-}\
-.ace-tm .ace_constant.ace_language {\
-color: rgb(88, 92, 246);\
-}\
-.ace-tm .ace_constant.ace_library {\
-color: rgb(6, 150, 14);\
-}\
-.ace-tm .ace_invalid {\
-background-color: rgba(255, 0, 0, 0.1);\
-color: red;\
-}\
-.ace-tm .ace_support.ace_function {\
-color: rgb(60, 76, 114);\
-}\
-.ace-tm .ace_support.ace_constant {\
-color: rgb(6, 150, 14);\
-}\
-.ace-tm .ace_support.ace_type,\
-.ace-tm .ace_support.ace_class {\
-color: rgb(109, 121, 222);\
-}\
-.ace-tm .ace_keyword.ace_operator {\
-color: rgb(104, 118, 135);\
-}\
-.ace-tm .ace_string {\
-color: rgb(3, 106, 7);\
-}\
-.ace-tm .ace_comment {\
-color: rgb(76, 136, 107);\
-}\
-.ace-tm .ace_comment.ace_doc {\
-color: rgb(0, 102, 255);\
-}\
-.ace-tm .ace_comment.ace_doc.ace_tag {\
-color: rgb(128, 159, 191);\
-}\
-.ace-tm .ace_constant.ace_numeric {\
-color: rgb(0, 0, 205);\
-}\
-.ace-tm .ace_variable {\
-color: rgb(49, 132, 149);\
-}\
-.ace-tm .ace_xml-pe {\
-color: rgb(104, 104, 91);\
-}\
-.ace-tm .ace_entity.ace_name.ace_function {\
-color: #0000A2;\
-}\
-.ace-tm .ace_markup.ace_heading {\
-color: rgb(12, 7, 255);\
-}\
-.ace-tm .ace_markup.ace_list {\
-color:rgb(185, 6, 144);\
-}\
-.ace-tm .ace_meta.ace_tag {\
-color:rgb(0, 22, 142);\
-}\
-.ace-tm .ace_string.ace_regex {\
-color: rgb(255, 0, 0)\
-}\
-.ace-tm .ace_marker-layer .ace_selection {\
-background: rgb(181, 213, 255);\
-}\
-.ace-tm.ace_multiselect .ace_selection.ace_start {\
-box-shadow: 0 0 3px 0px white;\
-border-radius: 2px;\
-}\
-.ace-tm .ace_marker-layer .ace_step {\
-background: rgb(252, 255, 0);\
-}\
-.ace-tm .ace_marker-layer .ace_stack {\
-background: rgb(164, 229, 101);\
-}\
-.ace-tm .ace_marker-layer .ace_bracket {\
-margin: -1px 0 0 -1px;\
-border: 1px solid rgb(192, 192, 192);\
-}\
-.ace-tm .ace_marker-layer .ace_active-line {\
-background: rgba(0, 0, 0, 0.07);\
-}\
-.ace-tm .ace_gutter-active-line {\
-background-color : #dcdcdc;\
-}\
-.ace-tm .ace_marker-layer .ace_selected-word {\
-background: rgb(250, 250, 255);\
-border: 1px solid rgb(200, 200, 250);\
-}\
-.ace-tm .ace_indent-guide {\
-background: url(\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAACCAYAAACZgbYnAAAAE0lEQVQImWP4////f4bLly//BwAmVgd1/w11/gAAAABJRU5ErkJggg==\") right repeat-y;\
-}\
-";
-
-var dom = require("../lib/dom");
-dom.importCssString(exports.cssText, exports.cssClass);
-});
-
 ace.define('ace/snippets', ['require', 'exports', 'module' , 'ace/lib/lang', 'ace/range', 'ace/keyboard/hash_handler', 'ace/tokenizer', 'ace/lib/dom'], function(require, exports, module) {
 
 var lang = require("./lib/lang")
@@ -15902,6 +15678,229 @@ require("./lib/dom").importCssString("\
 exports.SnippetManager = new SnippetManager();
 
 
+});
+
+ace.define('ace/mode/folding/fold_mode', ['require', 'exports', 'module' , 'ace/range'], function(require, exports, module) {
+
+
+var Range = require("../../range").Range;
+
+var FoldMode = exports.FoldMode = function() {};
+
+(function() {
+
+    this.foldingStartMarker = null;
+    this.foldingStopMarker = null;
+    this.getFoldWidget = function(session, foldStyle, row) {
+        var line = session.getLine(row);
+        if (this.foldingStartMarker.test(line))
+            return "start";
+        if (foldStyle == "markbeginend"
+                && this.foldingStopMarker
+                && this.foldingStopMarker.test(line))
+            return "end";
+        return "";
+    };
+
+    this.getFoldWidgetRange = function(session, foldStyle, row) {
+        return null;
+    };
+
+    this.indentationBlock = function(session, row, column) {
+        var re = /\S/;
+        var line = session.getLine(row);
+        var startLevel = line.search(re);
+        if (startLevel == -1)
+            return;
+
+        var startColumn = column || line.length;
+        var maxRow = session.getLength();
+        var startRow = row;
+        var endRow = row;
+
+        while (++row < maxRow) {
+            var level = session.getLine(row).search(re);
+
+            if (level == -1)
+                continue;
+
+            if (level <= startLevel)
+                break;
+
+            endRow = row;
+        }
+
+        if (endRow > startRow) {
+            var endColumn = session.getLine(endRow).length;
+            return new Range(startRow, startColumn, endRow, endColumn);
+        }
+    };
+
+    this.openingBracketBlock = function(session, bracket, row, column, typeRe) {
+        var start = {row: row, column: column + 1};
+        var end = session.$findClosingBracket(bracket, start, typeRe);
+        if (!end)
+            return;
+
+        var fw = session.foldWidgets[end.row];
+        if (fw == null)
+            fw = this.getFoldWidget(session, end.row);
+
+        if (fw == "start" && end.row > start.row) {
+            end.row --;
+            end.column = session.getLine(end.row).length;
+        }
+        return Range.fromPoints(start, end);
+    };
+
+    this.closingBracketBlock = function(session, bracket, row, column, typeRe) {
+        var end = {row: row, column: column};
+        var start = session.$findOpeningBracket(bracket, end);
+
+        if (!start)
+            return;
+
+        start.column++;
+        end.column--;
+
+        return  Range.fromPoints(start, end);
+    };
+}).call(FoldMode.prototype);
+
+});
+
+ace.define('ace/theme/textmate', ['require', 'exports', 'module' , 'ace/lib/dom'], function(require, exports, module) {
+
+
+exports.isDark = false;
+exports.cssClass = "ace-tm";
+exports.cssText = ".ace-tm .ace_gutter {\
+background: #f0f0f0;\
+color: #333;\
+}\
+.ace-tm .ace_print-margin {\
+width: 1px;\
+background: #e8e8e8;\
+}\
+.ace-tm .ace_fold {\
+background-color: #6B72E6;\
+}\
+.ace-tm .ace_scroller {\
+background-color: #FFFFFF;\
+}\
+.ace-tm .ace_cursor {\
+border-left: 2px solid black;\
+}\
+.ace-tm .ace_overwrite-cursors .ace_cursor {\
+border-left: 0px;\
+border-bottom: 1px solid black;\
+}\
+.ace-tm .ace_invisible {\
+color: rgb(191, 191, 191);\
+}\
+.ace-tm .ace_storage,\
+.ace-tm .ace_keyword {\
+color: blue;\
+}\
+.ace-tm .ace_constant {\
+color: rgb(197, 6, 11);\
+}\
+.ace-tm .ace_constant.ace_buildin {\
+color: rgb(88, 72, 246);\
+}\
+.ace-tm .ace_constant.ace_language {\
+color: rgb(88, 92, 246);\
+}\
+.ace-tm .ace_constant.ace_library {\
+color: rgb(6, 150, 14);\
+}\
+.ace-tm .ace_invalid {\
+background-color: rgba(255, 0, 0, 0.1);\
+color: red;\
+}\
+.ace-tm .ace_support.ace_function {\
+color: rgb(60, 76, 114);\
+}\
+.ace-tm .ace_support.ace_constant {\
+color: rgb(6, 150, 14);\
+}\
+.ace-tm .ace_support.ace_type,\
+.ace-tm .ace_support.ace_class {\
+color: rgb(109, 121, 222);\
+}\
+.ace-tm .ace_keyword.ace_operator {\
+color: rgb(104, 118, 135);\
+}\
+.ace-tm .ace_string {\
+color: rgb(3, 106, 7);\
+}\
+.ace-tm .ace_comment {\
+color: rgb(76, 136, 107);\
+}\
+.ace-tm .ace_comment.ace_doc {\
+color: rgb(0, 102, 255);\
+}\
+.ace-tm .ace_comment.ace_doc.ace_tag {\
+color: rgb(128, 159, 191);\
+}\
+.ace-tm .ace_constant.ace_numeric {\
+color: rgb(0, 0, 205);\
+}\
+.ace-tm .ace_variable {\
+color: rgb(49, 132, 149);\
+}\
+.ace-tm .ace_xml-pe {\
+color: rgb(104, 104, 91);\
+}\
+.ace-tm .ace_entity.ace_name.ace_function {\
+color: #0000A2;\
+}\
+.ace-tm .ace_markup.ace_heading {\
+color: rgb(12, 7, 255);\
+}\
+.ace-tm .ace_markup.ace_list {\
+color:rgb(185, 6, 144);\
+}\
+.ace-tm .ace_meta.ace_tag {\
+color:rgb(0, 22, 142);\
+}\
+.ace-tm .ace_string.ace_regex {\
+color: rgb(255, 0, 0)\
+}\
+.ace-tm .ace_marker-layer .ace_selection {\
+background: rgb(181, 213, 255);\
+}\
+.ace-tm.ace_multiselect .ace_selection.ace_start {\
+box-shadow: 0 0 3px 0px white;\
+border-radius: 2px;\
+}\
+.ace-tm .ace_marker-layer .ace_step {\
+background: rgb(252, 255, 0);\
+}\
+.ace-tm .ace_marker-layer .ace_stack {\
+background: rgb(164, 229, 101);\
+}\
+.ace-tm .ace_marker-layer .ace_bracket {\
+margin: -1px 0 0 -1px;\
+border: 1px solid rgb(192, 192, 192);\
+}\
+.ace-tm .ace_marker-layer .ace_active-line {\
+background: rgba(0, 0, 0, 0.07);\
+}\
+.ace-tm .ace_gutter-active-line {\
+background-color : #dcdcdc;\
+}\
+.ace-tm .ace_marker-layer .ace_selected-word {\
+background: rgb(250, 250, 255);\
+border: 1px solid rgb(200, 200, 250);\
+}\
+.ace-tm .ace_indent-guide {\
+background: url(\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAACCAYAAACZgbYnAAAAE0lEQVQImWP4////f4bLly//BwAmVgd1/w11/gAAAABJRU5ErkJggg==\") right repeat-y;\
+}\
+";
+
+var dom = require("../lib/dom");
+dom.importCssString(exports.cssText, exports.cssClass);
 });
 ;
             (function() {
