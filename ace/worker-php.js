@@ -959,17 +959,15 @@ EventEmitter._dispatchEvent = function(eventName, e) {
         e.stopPropagation = stopPropagation;
     if (!e.preventDefault)
         e.preventDefault = preventDefault;
-    if (!e.target)
-        e.target = this;
 
     for (var i=0; i<listeners.length; i++) {
-        listeners[i](e);
+        listeners[i](e, this);
         if (e.propagationStopped)
             break;
     }
     
     if (defaultHandler && !e.defaultPrevented)
-        return defaultHandler(e);
+        return defaultHandler(e, this);
 };
 
 
@@ -979,7 +977,7 @@ EventEmitter._signal = function(eventName, e) {
         return;
 
     for (var i=0; i<listeners.length; i++)
-        listeners[i](e);
+        listeners[i](e, this);
 };
 
 EventEmitter.once = function(eventName, callback) {
@@ -1013,6 +1011,7 @@ EventEmitter.addEventListener = function(eventName, callback, capturing) {
     return callback;
 };
 
+EventEmitter.off =
 EventEmitter.removeListener =
 EventEmitter.removeEventListener = function(eventName, callback) {
     this._eventRegistry = this._eventRegistry || {};
@@ -2211,6 +2210,10 @@ PHP.Lexer = function( src, ini ) {
     openTag = (ini === undefined || (/^(on|true|1)$/i.test(ini.short_open_tag) ) ? /(\<\?php\s|\<\?|\<\%|\<script language\=('|")?php('|")?\>)/i : /(\<\?php\s|<\?=|\<script language\=('|")?php('|")?\>)/i),
         openTagStart = (ini === undefined || (/^(on|true|1)$/i.test(ini.short_open_tag)) ? /^(\<\?php\s|\<\?|\<\%|\<script language\=('|")?php('|")?\>)/i : /^(\<\?php\s|<\?=|\<script language\=('|")?php('|")?\>)/i),
             tokens = [
+            {
+                value: PHP.Constants.T_USE,
+                re: /^use(?=\s)/i
+            },
             {
                 value: PHP.Constants.T_ABSTRACT,
                 re: /^abstract(?=\s)/i
