@@ -963,6 +963,8 @@ var Autocomplete = function() {
 
         var renderer = editor.renderer;
         if (!keepPopupPosition) {
+            this.popup.setFontSize(editor.getFontSize());
+
             var lineHeight = renderer.layerConfig.lineHeight;
             
             var pos = renderer.$cursorLayer.getPixelPosition(this.base, true);            
@@ -1114,6 +1116,7 @@ var Autocomplete = function() {
         editor.on("blur", this.blurListener);
         editor.on("mousedown", this.mousedownListener);
         editor.on("mousewheel", this.mousewheelListener);
+        
         this.updateCompletions();
     }
     
@@ -1452,7 +1455,7 @@ dom.importCssString("\
 }\
 .ace_autocomplete .ace_completion-highlight{\
     color: #000;\
-    text-shadow: 0 0 0.01px;\
+    text-shadow: 0 0 0.01em;\
 }\
 .ace_autocomplete {\
     width: 280px;\
