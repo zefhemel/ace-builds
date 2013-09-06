@@ -833,7 +833,7 @@ ace.define('ace/mode/nix_highlight_rules', ['require', 'exports', 'module' , 'ac
                 }, {
                     regex: "}",
                     token: function(val, start, stack) {
-                        return stack[1] == "qqstring" ? "constant.language.escape" : "text"
+                        return stack[1] && stack[1].charAt(0) == "q" ? "constant.language.escape" : "text";
                     },
                     next: "pop"
                 }],

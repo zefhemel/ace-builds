@@ -53,10 +53,13 @@ var snippetCompleter = {
             var snippets = snippetMap[scope] || [];
             for (var i = snippets.length; i--;) {
                 var s = snippets[i];
+                var caption = s.name || s.tabTrigger;
+                if (!caption)
+                    continue;
                 completions.push({
-                    caption: s.tabTrigger,
+                    caption: caption,
                     snippet: s.content,
-                    meta: "snippet"
+                    meta: s.tabTrigger && !s.name ? s.tabTrigger + "\u21E5 " : "snippet"
                 });
             }
         }, this);
@@ -374,37 +377,69 @@ var SnippetManager = function() {
             if (typeof p != "object")
                 return;
             var id = p.tabstopId;
-            if (!tabstops[id]) {
-                tabstops[id] = [];
-                tabstops[id].index = id;
-                tabstops[id].value = "";
+            var ts = tabstops[id];
+            if (!ts) {
+                ts = tabstops[id] = [];
+                ts.index = id;
+                ts.value = "";
             }
-            if (tabstops[id].indexOf(p) != -1)
+            if (ts.indexOf(p) !== -1)
                 return;
-            tabstops[id].push(p);
+            ts.push(p);
             var i1 = tokens.indexOf(p, i + 1);
-            if (i1 == -1)
+            if (i1 === -1)
                 return;
-            var value = tokens.slice(i + 1, i1).join("");
-            if (value)
-                tabstops[id].value = value;
-        });
 
-        tabstops.forEach(function(ts) {
-            ts.value && ts.forEach(function(p) {
-                var i = tokens.indexOf(p);
-                var i1 = tokens.indexOf(p, i + 1);
-                if (i1 == -1)
-                    tokens.splice(i + 1, 0, ts.value, p);
-                else if (i1 == i + 1)
-                    tokens.splice(i + 1, 0, ts.value);
-            });
+            var value = tokens.slice(i + 1, i1);
+            var isNested = value.some(function(t) {return typeof t === "object"});          
+            if (isNested && !ts.value) {
+                ts.value = value;
+            } else if (value.length && (!ts.value || typeof ts.value !== "string")) {
+                ts.value = value.join("");
+            }
         });
+        tabstops.forEach(function(ts) {ts.length = 0});
+        var expanding = {};
+        function copyValue(val) {
+            var copy = []
+            for (var i = 0; i < val.length; i++) {
+                var p = val[i];
+                if (typeof p == "object") {
+                    if (expanding[p.tabstopId])
+                        continue;
+                    var j = val.lastIndexOf(p, i - 1);
+                    p = copy[j] || {tabstopId: p.tabstopId};
+                }
+                copy[i] = p;
+            }
+            return copy;
+        }
+        for (var i = 0; i < tokens.length; i++) {
+            var p = tokens[i];
+            if (typeof p != "object")
+                continue;
+            var id = p.tabstopId;
+            var i1 = tokens.indexOf(p, i + 1);
+            if (expanding[id] == p) { 
+                expanding[id] = null;
+                continue;
+            }
+            
+            var ts = tabstops[id];
+            var arg = typeof ts.value == "string" ? [ts.value] : copyValue(ts.value);
+            arg.unshift(i + 1, Math.max(0, i1 - i));
+            arg.push(p);
+            expanding[id] = p;
+            tokens.splice.apply(tokens, arg);
+
+            if (ts.indexOf(p) === -1)
+                ts.push(p);
+        };
         var row = 0, column = 0;
         var text = "";
         tokens.forEach(function(t) {
-            if (typeof t == "string") {
-                if (t[0] == "\n"){
+            if (typeof t === "string") {
+                if (t[0] === "\n"){
                     column = t.length - 1;
                     row ++;
                 } else
@@ -575,7 +610,7 @@ var SnippetManager = function() {
             snippets.forEach(removeSnippet);
     };
     this.parseSnippetFile = function(str) {
-        str = str.replace(/\r/, "");
+        str = str.replace(/\r/g, "");
         var list = [], snippet = {};
         var re = /^#.*|^({[\s\S]*})\s*$|^(\S+) (.*)$|^((?:\n*\t.*)+)/gm;
         var m;
@@ -920,7 +955,7 @@ var Autocomplete = function() {
         }.bind(this));
     };
 
-    this.openPopup = function(editor, keepPopupPosition) {
+    this.openPopup = function(editor, prefix, keepPopupPosition) {
         if (!this.popup)
             this.$init();
 
@@ -929,7 +964,10 @@ var Autocomplete = function() {
         var renderer = editor.renderer;
         if (!keepPopupPosition) {
             var lineHeight = renderer.layerConfig.lineHeight;
-            var pos = renderer.$cursorLayer.getPixelPosition(null, true);
+            
+            var pos = renderer.$cursorLayer.getPixelPosition(this.base, true);            
+            pos.left -= this.popup.getTextLeftOffset();
+            
             var rect = editor.container.getBoundingClientRect();
             pos.top += rect.top - renderer.layerConfig.offset;
             pos.left += rect.left;
@@ -942,18 +980,24 @@ var Autocomplete = function() {
 
     this.detach = function() {
         this.editor.keyBinding.removeKeyboardHandler(this.keyboardHandler);
-        this.editor.removeEventListener("changeSelection", this.changeListener);
-        this.editor.removeEventListener("blur", this.changeListener);
-        this.editor.removeEventListener("mousedown", this.changeListener);
+        this.editor.off("changeSelection", this.changeListener);
+        this.editor.off("blur", this.changeListener);
+        this.editor.off("mousedown", this.changeListener);
+        this.editor.off("mousewheel", this.mousewheelListener);
         this.changeTimer.cancel();
         
         if (this.popup)
             this.popup.hide();
 
         this.activated = false;
+        this.completions = this.base = null;
     };
 
     this.changeListener = function(e) {
+        var cursor = this.editor.selection.lead;
+        if (cursor.row != this.base.row || cursor.column < this.base.column) {
+            this.detach();
+        }
         if (this.activated)
             this.changeTimer.schedule();
         else
@@ -978,8 +1022,8 @@ var Autocomplete = function() {
         var max = this.popup.session.getLength() - 1;
 
         switch(where) {
-            case "up": row = row <= 0 ? max : row - 1; break;
-            case "down": row = row >= max ? 0 : row + 1; break;
+            case "up": row = row < 0 ? max : row - 1; break;
+            case "down": row = row >= max ? -1 : row + 1; break;
             case "start": row = 0; break;
             case "end": row = max; break;
         }
@@ -988,7 +1032,6 @@ var Autocomplete = function() {
     };
 
     this.insertMatch = function(data) {
-        this.detach();
         if (!data)
             data = this.popup.getData(this.popup.getRow());
         if (!data)
@@ -997,15 +1040,18 @@ var Autocomplete = function() {
             data.completer.insertMatch(this.editor);
         } else {
             if (this.completions.filterText) {
-                var range = this.editor.selection.getRange();
-                range.start.column -= this.completions.filterText.length;
-                this.editor.session.remove(range);
+                var ranges = this.editor.selection.getAllRanges();
+                for (var i = 0, range; range = ranges[i]; i++) {
+                    range.start.column -= this.completions.filterText.length;
+                    this.editor.session.remove(range);
+                }
             }
             if (data.snippet)
                 snippetManager.insertSnippet(this.editor, data.snippet);
             else
-                this.editor.insert(data.value || data);
+                this.editor.execCommand("insertstring", data.value || data);
         }
+        this.detach();
     };
 
     this.commands = {
@@ -1020,49 +1066,19 @@ var Autocomplete = function() {
         "Shift-Return": function(editor) { editor.completer.insertMatch(true); },
         "Tab": function(editor) { editor.completer.insertMatch(); },
 
-        "PageUp": function(editor) { editor.completer.popup.gotoPageDown(); },
-        "PageDown": function(editor) { editor.completer.popup.gotoPageUp(); }
-    };
-
-    this.filterCompletions = function(items, needle) {
-        var results = [];
-        var upper = needle.toUpperCase();
-        var lower = needle.toLowerCase();
-        loop: for (var i = 0, item; item = items[i]; i++) {
-            var caption = item.value || item.caption;
-            if (!caption) continue;
-            var lastIndex = -1;
-            var matchMask = 0;
-            var penalty = 0;
-            var index, distance;
-            for (var j = 0; j < needle.length; j++) {
-                var i1 = caption.indexOf(lower[j], lastIndex + 1);
-                var i2 = caption.indexOf(upper[j], lastIndex + 1);
-                index = (i1 >= 0) ? ((i2 < 0 || i1 < i2) ? i1 : i2) : i2;
-                if (index < 0)
-                    continue loop;
-                distance = index - lastIndex - 1;
-                if (distance > 0) {
-                    if (lastIndex == -1)
-                        penalty += 10;
-                    penalty += distance;
-                }
-                matchMask = matchMask | (1 << index);
-                lastIndex = index;
-            }
-            item.matchMask = matchMask;
-            item.score = (item.score || 0) - penalty;
-            results.push(item);
-        }
-        return results;
+        "PageUp": function(editor) { editor.completer.popup.gotoPageUp(); },
+        "PageDown": function(editor) { editor.completer.popup.gotoPageDown(); }
     };
 
     this.gatherCompletions = function(editor, callback) {
         var session = editor.getSession();
         var pos = editor.getCursorPosition();
-
+        
         var line = session.getLine(pos.row);
         var prefix = util.retrievePrecedingIdentifier(line, pos.column);
+        
+        this.base = editor.getCursorPosition();
+        this.base.column -= prefix.length;
 
         var matches = [];
         util.parForEach(editor.completers, function(completer, next) {
@@ -1097,23 +1113,32 @@ var Autocomplete = function() {
         editor.on("changeSelection", this.changeListener);
         editor.on("blur", this.blurListener);
         editor.on("mousedown", this.mousedownListener);
+        editor.on("mousewheel", this.mousewheelListener);
         this.updateCompletions();
     }
     
     this.updateCompletions = function(keepPopupPosition) {
+        if (keepPopupPosition && this.base && this.completions) {
+            var pos = this.editor.getCursorPosition();
+            var prefix = this.editor.session.getTextRange({start: this.base, end: pos});
+            if (prefix == this.completions.filterText)
+                return;
+            this.completions.setFilter(prefix);
+            if (!this.completions.filtered.length)
+                return this.detach();
+            this.openPopup(this.editor, prefix, keepPopupPosition);
+            return;
+        }
         this.gatherCompletions(this.editor, function(err, results) {
             var matches = results && results.matches;
             if (!matches || !matches.length)
                 return this.detach();
 
-
-            matches = this.filterCompletions(matches, results.prefix);
-            matches = matches.sort(function(a, b) {
-                return b.score - a.score;
-            });
             this.completions = new FilteredList(matches);
             this.completions.setFilter(results.prefix);
-            this.openPopup(this.editor, keepPopupPosition);
+            if (!this.completions.filtered.length)
+                return this.detach();
+            this.openPopup(this.editor, results.prefix, keepPopupPosition);
         }.bind(this));
     };
 
@@ -1140,16 +1165,66 @@ Autocomplete.startCommand = {
     bindKey: "Ctrl-Space|Ctrl-Shift-Space|Alt-Space"
 };
 
-var FilteredList = function(array, mutateData) {
+var FilteredList = function(array, filterText, mutateData) {
     this.all = array;
-    this.filtered = array.concat();
-    this.filterText = "";
+    this.filtered = array;
+    this.filterText = filterText || "";
 };
 (function(){
     this.setFilter = function(str) {
-        this.filterText = str;
-    };
+        if (str.length > this.filterText && str.lastIndexOf(this.filterText, 0) === 0)
+            var matches = this.filtered;
+        else
+            var matches = this.all;
 
+        this.filterText = str;
+        matches = this.filterCompletions(matches, this.filterText);
+        matches = matches.sort(function(a, b) {
+            return b.exactMatch - a.exactMatch || b.score - a.score;
+        });
+        var prev = null;
+        matches = matches.filter(function(item){
+            var caption = item.value || item.caption || item.snippet; 
+            if (caption === prev) return false;
+            prev = caption;
+            return true;
+        });
+        
+        this.filtered = matches;
+    };
+    this.filterCompletions = function(items, needle) {
+        var results = [];
+        var upper = needle.toUpperCase();
+        var lower = needle.toLowerCase();
+        loop: for (var i = 0, item; item = items[i]; i++) {
+            var caption = item.value || item.caption || item.snippet;
+            if (!caption) continue;
+            var lastIndex = -1;
+            var matchMask = 0;
+            var penalty = 0;
+            var index, distance;
+            for (var j = 0; j < needle.length; j++) {
+                var i1 = caption.indexOf(lower[j], lastIndex + 1);
+                var i2 = caption.indexOf(upper[j], lastIndex + 1);
+                index = (i1 >= 0) ? ((i2 < 0 || i1 < i2) ? i1 : i2) : i2;
+                if (index < 0)
+                    continue loop;
+                distance = index - lastIndex - 1;
+                if (distance > 0) {
+                    if (lastIndex === -1)
+                        penalty += 10;
+                    penalty += distance;
+                }
+                matchMask = matchMask | (1 << index);
+                lastIndex = index;
+            }
+            item.matchMask = matchMask;
+            item.exactMatch = penalty ? 0 : 1;
+            item.score = (item.score || 0) - penalty;
+            results.push(item);
+        }
+        return results;
+    };
 }).call(FilteredList.prototype);
 
 exports.Autocomplete = Autocomplete;
@@ -1206,7 +1281,7 @@ var AcePopup = function(parentNode) {
     popup.renderer.$maxLines = 8;
     popup.renderer.$keepTextAreaAtCursor = false;
 
-    popup.setHighlightActiveLine(true);
+    popup.setHighlightActiveLine(false);
     popup.session.highlight("");
     popup.session.$searchHighlight.clazz = "ace_highlight-marker";
 
@@ -1214,15 +1289,42 @@ var AcePopup = function(parentNode) {
         var pos = e.getDocumentPosition();
         popup.moveCursorToPosition(pos);
         popup.selection.clearSelection();
+        selectionMarker.start.row = selectionMarker.end.row = pos.row;
         e.stop();
     });
 
+    var lastMouseEvent;
     var hoverMarker = new Range(-1,0,-1,Infinity);
-    hoverMarker.id = popup.session.addMarker(hoverMarker, "ace_line-hover", "fullLine");
+    var selectionMarker = new Range(-1,0,-1,Infinity);
+    selectionMarker.id = popup.session.addMarker(selectionMarker, "ace_active-line", "fullLine");
+    popup.setSelectOnHover = function(val) {
+        if (!val) {
+            hoverMarker.id = popup.session.addMarker(hoverMarker, "ace_line-hover", "fullLine");
+        } else if (hoverMarker.id) {
+            popup.session.removeMarker(hoverMarker.id);
+            hoverMarker.id = null;
+        }
+    }
+    popup.setSelectOnHover(false)
     popup.on("mousemove", function(e) {
-        var row = e.getDocumentPosition().row;
-        hoverMarker.start.row = hoverMarker.end.row = row;
-        popup.session._emit("changeBackMarker");
+        lastMouseEvent = e;
+        lastMouseEvent.scrollTop = popup.renderer.scrollTop;
+        var row = lastMouseEvent.getDocumentPosition().row;
+        if (hoverMarker.start.row != row) {
+            popup.session._emit("changeBackMarker");
+            if (!hoverMarker.id)
+                popup.setRow(row);
+            hoverMarker.start.row = hoverMarker.end.row = row;
+        }
+    });
+    popup.renderer.on("beforeRender", function() {
+        if (lastMouseEvent && hoverMarker.start.row != -1) {
+            lastMouseEvent.$pos = null;
+            var row = lastMouseEvent.getDocumentPosition().row;
+            if (!hoverMarker.id)
+                popup.setRow(row);
+            hoverMarker.start.row = hoverMarker.end.row = row;
+        }
     });
     var hideHoverMarker = function() {
         hoverMarker.start.row = hoverMarker.end.row = -1;
@@ -1231,12 +1333,7 @@ var AcePopup = function(parentNode) {
     event.addListener(popup.container, "mouseout", hideHoverMarker);
     popup.on("hide", hideHoverMarker);
     popup.on("changeSelection", hideHoverMarker);
-    popup.on("mousewheel", function(e) {
-        setTimeout(function() {
-            popup._signal("mousemove", e);
-        });
-    });
-
+    
     popup.session.doc.getLength = function() {
         return popup.data.length;
     };
@@ -1264,7 +1361,7 @@ var AcePopup = function(parentNode) {
             c = data.caption[i];
             flag = data.matchMask & (1 << i) ? 1 : 0;
             if (last !== flag) {
-                tokens.push({type: data.className || "" + ( flag ? ".bold" : ""), value: c});
+                tokens.push({type: data.className || "" + ( flag ? "completion-highlight" : ""), value: c});
                 last = flag;
             } else {
                 tokens[tokens.length - 1].value += c;
@@ -1291,17 +1388,17 @@ var AcePopup = function(parentNode) {
     popup.getData = function(row) {
         return popup.data[row];
     };
-	
-	popup.getRow = function() {
-        var line = this.getCursorPosition().row;
-        if (line == 0 && !this.getHighlightActiveLine())
-            line = -1;
-        return line;
+
+    popup.getRow = function() {
+        return selectionMarker.start.row;
     };
     popup.setRow = function(line) {
-        popup.setHighlightActiveLine(line != -1);
-        popup.selection.clearSelection();
-        popup.moveCursorTo(line, 0 || 0);
+        if (selectionMarker.start.row != line) {
+            popup.selection.clearSelection();
+            selectionMarker.start.row = selectionMarker.end.row = line || 0;
+            popup.session._emit("changeBackMarker");
+            popup.moveCursorTo(line || 0, 0);
+        }
     };
 
     popup.hide = function() {
@@ -1325,13 +1422,18 @@ var AcePopup = function(parentNode) {
 
         this._signal("show");
     };
+    
+    popup.getTextLeftOffset = function() {
+        return 1 + this.renderer.layerConfig.padding;
+    }
 
     return popup;
 };
 
 dom.importCssString("\
 .ace_autocomplete.ace-tm .ace_marker-layer .ace_active-line {\
-    background-color: #abbffe;\
+    background-color: #CAD6FA;\
+    z-index: 1;\
 }\
 .ace_autocomplete.ace-tm .ace_line-hover {\
     border: 1px solid #abbffe;\
@@ -1348,13 +1450,19 @@ dom.importCssString("\
     text-align: right;\
     z-index: -1;\
 }\
+.ace_autocomplete .ace_completion-highlight{\
+    color: #000;\
+    text-shadow: 0 0 0.01px;\
+}\
 .ace_autocomplete {\
-    width: 200px;\
+    width: 280px;\
     z-index: 200000;\
-    background: #f8f8f8;\
+    background: #fbfbfb;\
+    color: #444;\
     border: 1px lightgray solid;\
     position: fixed;\
     box-shadow: 2px 3px 5px rgba(0,0,0,.2);\
+    line-height: 1.4;\
 }");
 
 exports.AcePopup = AcePopup;

@@ -1767,6 +1767,15 @@ var Editor = function(renderer, session) {
     this.commands.on("exec", this.$historyTracker);
 
     this.$initOperationListeners();
+    
+    this._$emitInputEvent = lang.delayedCall(function() {
+        this._signal("input", {});
+        this.session.bgTokenizer && this.session.bgTokenizer.scheduleStart();
+    }.bind(this));
+    
+    this.on("change", function(_, _self) {
+        _self._$emitInputEvent.schedule(31);
+    });
 
     this.setSession(session || new EditSession(""));
     config.resetOptions(this);
@@ -3934,6 +3943,10 @@ var MouseHandler = function(editor) {
     event.addListener(mouseTarget, "click", this.onMouseEvent.bind(this, "click"));
     event.addListener(mouseTarget, "mousemove", this.onMouseMove.bind(this, "mousemove"));
     event.addMultiMouseDownListener(mouseTarget, [300, 300, 250], this, "onMouseEvent");
+    if (editor.renderer.scrollBarV) {
+        event.addMultiMouseDownListener(editor.renderer.scrollBarV.inner, [300, 300, 250], this, "onMouseEvent");
+        event.addMultiMouseDownListener(editor.renderer.scrollBarH.inner, [300, 300, 250], this, "onMouseEvent");
+    }
     event.addMouseWheelListener(editor.container, this.onMouseWheel.bind(this, "mousewheel"));
 
     var gutterEl = editor.renderer.$gutter;
@@ -4938,6 +4951,7 @@ EventEmitter._dispatchEvent = function(eventName, e) {
     if (!e.preventDefault)
         e.preventDefault = preventDefault;
 
+    listeners = listeners.slice();
     for (var i=0; i<listeners.length; i++) {
         listeners[i](e, this);
         if (e.propagationStopped)
@@ -4953,7 +4967,7 @@ EventEmitter._signal = function(eventName, e) {
     var listeners = (this._eventRegistry || {})[eventName];
     if (!listeners)
         return;
-
+    listeners = listeners.slice();
     for (var i=0; i<listeners.length; i++)
         listeners[i](e, this);
 };
@@ -5175,8 +5189,11 @@ var KeyBinding = function(editor) {
             } else {
                 success = commands.exec(toExecute.command, this.$editor, toExecute.args, e);                
             }
-            if (success && e && hashId != -1 && toExecute.passEvent != true)
+            if (success && e && hashId != -1 && 
+                toExecute.passEvent != true && toExecute.command.passEvent != true
+            ) {
                 event.stopEvent(e);
+            }
             if (success)
                 break;
         }
@@ -5753,7 +5770,6 @@ var EditSession = function(text, mode) {
 
     this.$scrollTop = 0;
     this.setScrollTop = function(scrollTop) {
-        scrollTop = Math.round(scrollTop);
         if (this.$scrollTop === scrollTop || isNaN(scrollTop))
             return;
 
@@ -5766,7 +5782,6 @@ var EditSession = function(text, mode) {
 
     this.$scrollLeft = 0;
     this.setScrollLeft = function(scrollLeft) {
-        scrollLeft = Math.round(scrollLeft);
         if (this.$scrollLeft === scrollLeft || isNaN(scrollLeft))
             return;
 
@@ -9241,6 +9256,10 @@ var BackgroundTokenizer = function(tokenizer, editor) {
         this.stop();
         this.running = setTimeout(this.$worker, 700);
     };
+    
+    this.scheduleStart = function() {
+        this.running = setTimeout(this.$worker, 700);
+    }
 
     this.$updateOnChange = function(delta) {
         var range = delta.range;
@@ -9262,7 +9281,6 @@ var BackgroundTokenizer = function(tokenizer, editor) {
         this.currentLine = Math.min(startRow, this.currentLine, this.doc.getLength());
 
         this.stop();
-        this.running = setTimeout(this.$worker, 700);
     };
     this.stop = function() {
         if (this.running)
@@ -9547,7 +9565,8 @@ function Folding() {
         var startColumn = fold.start.column;
         var endRow = fold.end.row;
         var endColumn = fold.end.column;
-        if (startRow == endRow && endColumn - startColumn < 2)
+        if (!(startRow < endRow || 
+            startRow == endRow && startColumn <= endColumn - 2))
             throw "The range has to be at least 2 characters width";
 
         var startFold = this.getFoldAt(startRow, startColumn, 1);
@@ -9870,17 +9889,22 @@ function Folding() {
             depth = 100000; // JSON.stringify doesn't hanle Infinity
         var foldWidgets = this.foldWidgets;
         endRow = endRow || this.getLength();
-        for (var row = startRow || 0; row < endRow; row++) {
+        startRow = startRow || 0;
+        for (var row = startRow; row < endRow; row++) {
             if (foldWidgets[row] == null)
                 foldWidgets[row] = this.getFoldWidget(row);
             if (foldWidgets[row] != "start")
                 continue;
 
             var range = this.getFoldWidgetRange(row);
-            if (range && range.end.row <= endRow) try {
+            var rangeEndRow = range.end.row;
+            if (range && range.isMultiLine()
+                && rangeEndRow <= endRow
+                && range.start.row >= startRow
+            ) try {
                 var fold = this.addFold("...", range);
                 fold.collapseChildren = depth;
-                row = range.end.row;
+                row = rangeEndRow;
             } catch(e) {}
         }
     };
@@ -11182,6 +11206,9 @@ function HashHandler(config, platform) {
     this.addCommands = function(commands) {
         commands && Object.keys(commands).forEach(function(name) {
             var command = commands[name];
+            if (!command)
+                return;
+            
             if (typeof command === "string")
                 return this.bindKey(command, name);
 
@@ -11863,16 +11890,18 @@ background-image: url(\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCA
 }\
 .ace_scrollbar {\
 position: absolute;\
-overflow: hidden;\
+overflow-x: hidden;\
 overflow-y: auto;\
 right: 0;\
 top: 0;\
 bottom: 0;\
+z-index: 6;\
 }\
 .ace_scrollbar-inner {\
 position: absolute;\
-width: 1px;\
+cursor: text;\
 left: 0;\
+top: 0;\
 }\
 .ace_scrollbar-h {\
 position: absolute;\
@@ -11881,11 +11910,7 @@ overflow-y: hidden;\
 right: 0;\
 left: 0;\
 bottom: 0;\
-}\
-.ace_scrollbar-inner {\
-position: absolute;\
-height: 1px;\
-left: 0;\
+z-index: 6;\
 }\
 .ace_print-margin {\
 position: absolute;\
@@ -12038,7 +12063,7 @@ display: inline-block;\
 max-width: 500px;\
 padding: 4px;\
 position: fixed;\
-z-index: 300;\
+z-index: 999999;\
 -moz-box-sizing: border-box;\
 -webkit-box-sizing: border-box;\
 box-sizing: border-box;\
@@ -12369,7 +12394,7 @@ var VirtualRenderer = function(container, theme) {
         if (force)
             this.$renderChanges(changes, true);
         else
-            this.$loop.schedule(changes || this.$changes);
+            this.$loop.schedule(changes | this.$changes);
 
         if (this.resizing)
             this.resizing = 0;
@@ -12378,6 +12403,12 @@ var VirtualRenderer = function(container, theme) {
     this.$updateCachedSize = function(force, gutterWidth, width, height) {
         var changes = 0;
         var size = this.$size;
+        var oldSize = {
+            width: size.width,
+            height: size.height,
+            scrollerHeight: size.scrollerHeight,
+            scrollerWidth: size.scrollerWidth
+        };
         if (height && (force || size.height != height)) {
             size.height = height;
             changes = this.CHANGE_SIZE;
@@ -12415,7 +12446,7 @@ var VirtualRenderer = function(container, theme) {
         }
         
         if (changes)
-            this._signal("resize");
+            this._signal("resize", oldSize);
 
         return changes;
     };
@@ -12423,7 +12454,7 @@ var VirtualRenderer = function(container, theme) {
     this.onGutterResize = function() {
         var gutterWidth = this.$showGutter ? this.$gutter.offsetWidth : 0;
         if (gutterWidth != this.gutterWidth)
-            this.$changes != this.$updateCachedSize(true, gutterWidth, this.$size.width, this.$size.height);
+            this.$changes |= this.$updateCachedSize(true, gutterWidth, this.$size.width, this.$size.height);
 
         if (this.session.getUseWrapMode() && this.adjustWrapLimit())
             this.$loop.schedule(this.CHANGE_FULL);
@@ -14529,7 +14560,10 @@ var ScrollBarV = function(parent, renderer) {
     parent.appendChild(this.element);
     renderer.$scrollbarWidth = 
     this.width = dom.scrollbarWidth(parent.ownerDocument);
+    renderer.$scrollbarWidth = 
+    this.width = dom.scrollbarWidth(parent.ownerDocument);
     this.fullWidth = this.width;
+    this.inner.style.width =
     this.element.style.width = (this.width || 15) + 5 + "px";
     this.setVisible(false);
     this.element.style.overflowY = "scroll";
@@ -14548,6 +14582,7 @@ var ScrollBarH = function(parent, renderer) {
     parent.appendChild(this.element);
     this.height = renderer.$scrollbarWidth;
     this.fullHeight = this.height;
+    this.inner.style.height =
     this.element.style.height = (this.height || 15) + 5 + "px";
     this.setVisible(false);
     this.element.style.overflowX = "scroll";
@@ -14794,7 +14829,7 @@ var EditSession = require("./edit_session").EditSession;
         this.rangeCount = 0;
     };
     this.getAllRanges = function() {
-        return this.rangeList.ranges.concat();
+        return this.rangeCount ? this.rangeList.ranges.concat() : [this.getRange()];
     };
 
     this.splitIntoLines = function () {
