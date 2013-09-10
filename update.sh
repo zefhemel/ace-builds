@@ -6,3 +6,5 @@ cd ace-master
 npm install
 ./Makefile.dryice.js normal
 mv build/src-noconflict ../ace
+rm -rf ace/snippets
+rm ace/worker-*

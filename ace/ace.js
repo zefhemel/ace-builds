@@ -6152,8 +6152,10 @@ var EditSession = function(text, mode) {
     };
     this.setWrapLimitRange = function(min, max) {
         if (this.$wrapLimitRange.min !== min || this.$wrapLimitRange.max !== max) {
-            this.$wrapLimitRange.min = min;
-            this.$wrapLimitRange.max = max;
+            this.$wrapLimitRange = {
+                min: min,
+                max: max
+            };
             this.$modified = true;
             this._emit("changeWrapMode");
         }
@@ -9053,6 +9055,7 @@ var Anchor = exports.Anchor = function(doc, row, column) {
     this.getDocument = function() {
         return this.document;
     };
+    this.$insertRight = false;
     this.onChange = function(e) {
         var delta = e.data;
         var range = delta.range;
@@ -9073,7 +9076,8 @@ var Anchor = exports.Anchor = function(doc, row, column) {
 
         if (delta.action === "insertText") {
             if (start.row === row && start.column <= column) {
-                if (start.row === end.row) {
+                if (start.column === column && this.$insertRight) {
+                } else if (start.row === end.row) {
                     column += end.column - start.column;
                 } else {
                     column -= start.column;
@@ -10547,11 +10551,16 @@ var RangeList = function() {
                 break;
 
             if (r.start.row == startRow && r.start.column >= start.column ) {
-                
-                r.start.column += colDiff;
-                r.start.row += lineDif;
+                if (r.start.column == start.column && this.$insertRight) {
+                } else {
+                    r.start.column += colDiff;
+                    r.start.row += lineDif;
+                }
             }
             if (r.end.row == startRow && r.end.column >= start.column) {
+                if (r.end.column == start.column && this.$insertRight) {
+                    continue;
+                }
                 if (r.end.column == start.column && colDiff > 0 && i < n - 1) {                
                     if (r.end.column > r.start.column && r.end.column == ranges[i+1].start.column)
                         r.end.column -= colDiff;
