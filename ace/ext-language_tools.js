@@ -255,11 +255,13 @@ var SnippetManager = function() {
             case "SELECTED_TEXT":
                 return s.getTextRange(r);
             case "CURRENT_LINE":
-                return s.getLine(e.getCursorPosition().row);
+                return s.getLine(editor.getCursorPosition().row);
+            case "PREV_LINE": // not possible in textmate
+                return s.getLine(editor.getCursorPosition().row - 1);
             case "LINE_INDEX":
-                return e.getCursorPosition().column;
+                return editor.getCursorPosition().column;
             case "LINE_NUMBER":
-                return e.getCursorPosition().row + 1;
+                return editor.getCursorPosition().row + 1;
             case "SOFT_TABS":
                 return s.getUseSoftTabs() ? "YES" : "NO";
             case "TAB_SIZE":
@@ -984,7 +986,7 @@ var Autocomplete = function() {
         this.editor.keyBinding.removeKeyboardHandler(this.keyboardHandler);
         this.editor.off("changeSelection", this.changeListener);
         this.editor.off("blur", this.changeListener);
-        this.editor.off("mousedown", this.changeListener);
+        this.editor.off("mousedown", this.mousedownListener);
         this.editor.off("mousewheel", this.mousewheelListener);
         this.changeTimer.cancel();
         
@@ -1410,9 +1412,12 @@ var AcePopup = function(parentNode) {
     };
     popup.show = function(pos, lineHeight) {
         var el = this.container;
-        if (pos.top > window.innerHeight / 2  + lineHeight) {
+        var screenHeight = window.innerHeight;
+        var renderer = this.renderer;
+        var maxH = renderer.$maxLines * lineHeight;
+        if (pos.top +maxH > screenHeight - lineHeight) {
             el.style.top = "";
-            el.style.bottom = window.innerHeight - pos.top + "px";
+            el.style.bottom = screenHeight - pos.top + "px";
         } else {
             pos.top += lineHeight;
             el.style.top = pos.top + "px";
