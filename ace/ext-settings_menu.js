@@ -336,6 +336,7 @@ var supportedModes = {
     HTML:        ["html|htm|xhtml"],
     HTML_Ruby:   ["erb|rhtml|html.erb"],
     INI:         ["ini|conf|cfg|prefs"],
+    Jack:        ["jack"],
     Jade:        ["jade"],
     Java:        ["java"],
     JavaScript:  ["js|jsm"],
