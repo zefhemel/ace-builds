@@ -195,7 +195,7 @@ exports.edit = function(el) {
         var _id = el;
         var el = document.getElementById(_id);
         if (!el)
-            throw "ace.edit can't find div #" + _id;
+            throw new Error("ace.edit can't find div #" + _id);
     }
 
     if (el.env && el.env.editor instanceof Editor)
@@ -4889,7 +4889,7 @@ exports.moduleUrl = function(name, component) {
     var sep = component == "snippets" ? "/" : "-";
     var base = parts[parts.length - 1];    
     if (sep == "-") {
-        var re = new RegExp("^" + component + "[\-_]|[\-_]" + component + "$", "g");
+        var re = new RegExp("^" + component + "[\\-_]|[\\-_]" + component + "$", "g");
         base = base.replace(re, "");
     }
 
@@ -4920,7 +4920,7 @@ exports.loadModule = function(moduleName, onLoad) {
 
     try {
         module = require(moduleName);
-    } catch (e) {};
+    } catch (e) {}
     if (module && !exports.$loading[moduleName])
         return onLoad && onLoad(module);
 
@@ -5021,8 +5021,8 @@ var optionsProvider = {
             return;
         var opt = this.$options[name];
         if (!opt) {
-            if (typeof console != "undefined" && console.error)
-                console.error('misspelled option "' + name + '"');
+            if (typeof console != "undefined" && console.warn)
+                console.warn('misspelled option "' + name + '"');
             return undefined;
         }
         if (opt.forwardTo)
@@ -5036,8 +5036,8 @@ var optionsProvider = {
     getOption: function(name) {
         var opt = this.$options[name];
         if (!opt) {
-            if (typeof console != "undefined" && console.error)
-                console.error('misspelled option "' + name + '"');
+            if (typeof console != "undefined" && console.warn)
+                console.warn('misspelled option "' + name + '"');
             return undefined;
         }
         if (opt.forwardTo)
@@ -5078,7 +5078,7 @@ exports.setDefaultValue = function(path, name, value) {
     var opts = defaultOptions[path] || (defaultOptions[path] = {});
     if (opts[name]) {
         if (opts.forwardTo)
-            exports.setDefaultValue(opts.forwardTo, name, value)
+            exports.setDefaultValue(opts.forwardTo, name, value);
         else
             opts[name].value = value;
     }
@@ -9481,7 +9481,8 @@ var BackgroundTokenizer = function(tokenizer, editor) {
     };
     
     this.scheduleStart = function() {
-        this.running = setTimeout(this.$worker, 700);
+        if (!this.running)
+            this.running = setTimeout(this.$worker, 700);
     }
 
     this.$updateOnChange = function(delta) {
@@ -9790,7 +9791,7 @@ function Folding() {
         var endColumn = fold.end.column;
         if (!(startRow < endRow || 
             startRow == endRow && startColumn <= endColumn - 2))
-            throw "The range has to be at least 2 characters width";
+            throw new Error("The range has to be at least 2 characters width");
 
         var startFold = this.getFoldAt(startRow, startColumn, 1);
         var endFold = this.getFoldAt(endRow, endColumn, -1);
@@ -9801,7 +9802,7 @@ function Folding() {
             (startFold && !startFold.range.isStart(startRow, startColumn))
             || (endFold && !endFold.range.isEnd(endRow, endColumn))
         ) {
-            throw "A fold can't intersect already existing fold" + fold.range + startFold.range;
+            throw new Error("A fold can't intersect already existing fold" + fold.range + startFold.range);
         }
         var folds = this.getFoldsInRange(fold.range);
         if (folds.length > 0) {
@@ -10310,7 +10311,7 @@ function FoldLine(foldData, folds) {
     this.addFold = function(fold) {
         if (fold.sameRow) {
             if (fold.start.row < this.startRow || fold.endRow > this.endRow) {
-                throw "Can't add a fold to this FoldLine as it has no connection";
+                throw new Error("Can't add a fold to this FoldLine as it has no connection");
             }
             this.folds.push(fold);
             this.folds.sort(function(a, b) {
@@ -10332,7 +10333,7 @@ function FoldLine(foldData, folds) {
             this.start.row = fold.start.row;
             this.start.column = fold.start.column;
         } else {
-            throw "Trying to add fold to FoldRow that doesn't have a matching row";
+            throw new Error("Trying to add fold to FoldRow that doesn't have a matching row");
         }
         fold.foldLine = this;
     }
@@ -10539,7 +10540,7 @@ oop.inherits(Fold, RangeList);
             return;
 
         if (!this.range.containsRange(fold))
-            throw "A fold can't intersect already existing fold" + fold.range + this.range;
+            throw new Error("A fold can't intersect already existing fold" + fold.range + this.range);
         consumeRange(fold, this.start);
 
         var row = fold.start.row, column = fold.start.column;
@@ -10561,7 +10562,7 @@ oop.inherits(Fold, RangeList);
         var afterEnd = this.subFolds[j];
 
         if (cmp == 0)
-            throw "A fold can't intersect already existing fold" + fold.range + this.range;
+            throw new Error("A fold can't intersect already existing fold" + fold.range + this.range);
 
         var consumedFolds = this.subFolds.splice(i, j - i, fold);
         fold.setFoldLine(this.foldLine);
@@ -11383,16 +11384,23 @@ function HashHandler(config, platform) {
     this.commands = {};
     this.commandKeyBinding = {};
     if (this.__defineGetter__ && this.__defineSetter__ && typeof console != "undefined" && console.error) {
+        var warned = false;
+        var warn = function() {
+            if (!warned) {
+                warned = true;
+                console.error("commmandKeyBinding has too many m's. use commandKeyBinding");
+            }
+        };
         this.__defineGetter__("commmandKeyBinding", function() {
-            console.error("commmandKeyBinding has too many m's. use commandKeyBinding")
+            warn();
             return this.commandKeyBinding;
         });
         this.__defineSetter__("commmandKeyBinding", function(val) {
-            console.error("commmandKeyBinding has too many m's. use commandKeyBinding")
+            warn();
             return this.commandKeyBinding = val;
         });
     } else {
-        this.commmandKeyBinding = commandKeyBinding;
+        this.commmandKeyBinding = this.commandKeyBinding;
     }
 
     this.addCommands(config);
@@ -13352,7 +13360,10 @@ var VirtualRenderer = function(container, theme) {
             - this.layerConfig.maxHeight - (this.$size.scrollerHeight - this.lineHeight) * this.$scrollPastEnd
             < -1 + this.scrollMargin.bottom)
            return true;
-        if (deltaX)
+        if (deltaX < 0 && this.session.getScrollLeft() >= 1 - this.scrollMargin.left)
+            return true;
+        if (deltaX > 0 && this.session.getScrollLeft() + this.$size.scrollerWidth
+            - this.layerConfig.width < -1 + this.scrollMargin.right)
            return true;
     };
 
@@ -13451,7 +13462,7 @@ var VirtualRenderer = function(container, theme) {
             dom.addCssClass(_self.container, module.cssClass);
             dom.setCssClass(_self.container, "ace_dark", module.isDark);
 
-            var padding = module.padding || 4;
+            var padding = "padding" in module ? module.padding : 4;
             if (_self.$padding && padding != _self.$padding)
                 _self.setPadding(padding);
             if (_self.$size) {
@@ -13738,7 +13749,7 @@ var Gutter = function(parentEl) {
                 this.$cells[index] = cell;
             }
 
-            var className = "ace_gutter-cell";
+            var className = "ace_gutter-cell ";
             if (breakpoints[row])
                 className += breakpoints[row];
             if (decorations[row])
