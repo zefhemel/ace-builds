@@ -971,6 +971,7 @@ var Autocomplete = function() {
 
         var renderer = editor.renderer;
         if (!keepPopupPosition) {
+            this.popup.setRow(0);
             this.popup.setFontSize(editor.getFontSize());
 
             var lineHeight = renderer.layerConfig.lineHeight;
@@ -980,7 +981,7 @@ var Autocomplete = function() {
             
             var rect = editor.container.getBoundingClientRect();
             pos.top += rect.top - renderer.layerConfig.offset;
-            pos.left += rect.left;
+            pos.left += rect.left - editor.renderer.scrollLeft;
             pos.left += renderer.$gutterLayer.gutterWidth;
 
             this.popup.show(pos, lineHeight);
@@ -1420,6 +1421,9 @@ var AcePopup = function(parentNode) {
     popup.session.$computeWidth = function() {
         return this.screenWidth = 0;
     }
+    popup.isOpen = false;
+    popup.isTopdown = false;
+    
     popup.data = [];
     popup.setData = function(list) {
         popup.data = list || [];
@@ -1444,31 +1448,44 @@ var AcePopup = function(parentNode) {
                 popup._signal("select");
         }
     };
+    
+    popup.on("changeSelection", function() {
+        if (popup.isOpen)
+            popup.setRow(popup.selection.lead.row);
+    });
 
     popup.hide = function() {
         this.container.style.display = "none";
         this._signal("hide");
         popup.isOpen = false;
     };
-    popup.show = function(pos, lineHeight) {
+    popup.show = function(pos, lineHeight, topdownOnly) {
         var el = this.container;
         var screenHeight = window.innerHeight;
+        var screenWidth = window.innerWidth;
         var renderer = this.renderer;
         var maxH = renderer.$maxLines * lineHeight * 1.4;
         var top = pos.top + this.$borderSize;
-        if (top + maxH > screenHeight - lineHeight) {
+        if (top + maxH > screenHeight - lineHeight && !topdownOnly) {
             el.style.top = "";
             el.style.bottom = screenHeight - top + "px";
+            popup.isTopdown = false;
         } else {
             top += lineHeight;
             el.style.top = top + "px";
             el.style.bottom = "";
+            popup.isTopdown = true;
         }
 
-        el.style.left = pos.left + "px";
         el.style.display = "";
         this.renderer.$textLayer.checkForSizeChanges();
-
+        
+        var left = pos.left;
+        if (left + el.offsetWidth > screenWidth)
+            left = screenWidth - el.offsetWidth;
+            
+        el.style.left = left + "px";
+        
         this._signal("show");
         lastMouseEvent = null;
         popup.isOpen = true;
