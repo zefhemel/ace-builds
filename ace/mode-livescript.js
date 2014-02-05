@@ -1,4 +1,4 @@
-ace.define('ace/mode/livescript', ['require', 'exports', 'module' , 'ace/tokenizer', 'ace/mode/matching_brace_outdent', 'ace/range', 'ace/mode/text'], function(require, exports, module) {
+define('ace/mode/livescript', ['require', 'exports', 'module' , 'ace/tokenizer', 'ace/mode/matching_brace_outdent', 'ace/range', 'ace/mode/text'], function(require, exports, module) {
   var identifier, LiveScriptMode, keywordend, stringfill;
   identifier = '(?![\\d\\s])[$\\w\\xAA-\\uFFDC](?:(?!\\s)[$\\w\\xAA-\\uFFDC]|-[A-Za-z])*';
   exports.Mode = LiveScriptMode = (function(superclass){
@@ -9,6 +9,7 @@ ace.define('ace/mode/livescript', ['require', 'exports', 'module' , 'ace/tokeniz
       if (that = require('../mode/matching_brace_outdent')) {
         this.$outdent = new that.MatchingBraceOutdent;
       }
+      this.$id = "ace/mode/livescript";
     }
     indenter = RegExp('(?:[({[=:]|[-~]>|\\b(?:e(?:lse|xport)|d(?:o|efault)|t(?:ry|hen)|finally|import(?:\\s*all)?|const|var|let|new|catch(?:\\s*' + identifier + ')?))\\s*$');
     prototype.getNextLineIndent = function(state, line, tab){
@@ -247,7 +248,7 @@ function import$(obj, src){
 }
 });
 
-ace.define('ace/mode/matching_brace_outdent', ['require', 'exports', 'module' , 'ace/range'], function(require, exports, module) {
+define('ace/mode/matching_brace_outdent', ['require', 'exports', 'module' , 'ace/range'], function(require, exports, module) {
 
 
 var Range = require("../range").Range;

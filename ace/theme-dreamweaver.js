@@ -28,7 +28,7 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-ace.define('ace/theme/dreamweaver', ['require', 'exports', 'module' , 'ace/lib/dom'], function(require, exports, module) {
+define('ace/theme/dreamweaver', ['require', 'exports', 'module' , 'ace/lib/dom'], function(require, exports, module) {
 exports.isDark = false;
 exports.cssClass = "ace-dreamweaver";
 exports.cssText = ".ace-dreamweaver .ace_gutter {\
@@ -41,6 +41,7 @@ background: #e8e8e8;\
 }\
 .ace-dreamweaver {\
 background-color: #FFFFFF;\
+color: black;\
 }\
 .ace-dreamweaver .ace_fold {\
 background-color: #757AD8;\

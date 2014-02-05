@@ -1,4 +1,4 @@
-ace.define('ace/mode/csharp', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/text', 'ace/tokenizer', 'ace/mode/csharp_highlight_rules', 'ace/mode/matching_brace_outdent', 'ace/mode/behaviour/cstyle', 'ace/mode/folding/csharp'], function(require, exports, module) {
+define('ace/mode/csharp', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/text', 'ace/tokenizer', 'ace/mode/csharp_highlight_rules', 'ace/mode/matching_brace_outdent', 'ace/mode/behaviour/cstyle', 'ace/mode/folding/csharp'], function(require, exports, module) {
 
 
 var oop = require("../lib/oop");
@@ -55,11 +55,12 @@ oop.inherits(Mode, TextMode);
         return null;
     };
 
+    this.$id = "ace/mode/csharp";
 }).call(Mode.prototype);
 
 exports.Mode = Mode;
 });
-ace.define('ace/mode/csharp_highlight_rules', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/doc_comment_highlight_rules', 'ace/mode/text_highlight_rules'], function(require, exports, module) {
+define('ace/mode/csharp_highlight_rules', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/doc_comment_highlight_rules', 'ace/mode/text_highlight_rules'], function(require, exports, module) {
 
 
 var oop = require("../lib/oop");
@@ -153,7 +154,7 @@ oop.inherits(CSharpHighlightRules, TextHighlightRules);
 exports.CSharpHighlightRules = CSharpHighlightRules;
 });
 
-ace.define('ace/mode/doc_comment_highlight_rules', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/text_highlight_rules'], function(require, exports, module) {
+define('ace/mode/doc_comment_highlight_rules', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/text_highlight_rules'], function(require, exports, module) {
 
 
 var oop = require("../lib/oop");
@@ -197,7 +198,7 @@ exports.DocCommentHighlightRules = DocCommentHighlightRules;
 
 });
 
-ace.define('ace/mode/matching_brace_outdent', ['require', 'exports', 'module' , 'ace/range'], function(require, exports, module) {
+define('ace/mode/matching_brace_outdent', ['require', 'exports', 'module' , 'ace/range'], function(require, exports, module) {
 
 
 var Range = require("../range").Range;
@@ -237,7 +238,7 @@ var MatchingBraceOutdent = function() {};
 exports.MatchingBraceOutdent = MatchingBraceOutdent;
 });
 
-ace.define('ace/mode/behaviour/cstyle', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/behaviour', 'ace/token_iterator', 'ace/lib/lang'], function(require, exports, module) {
+define('ace/mode/behaviour/cstyle', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/behaviour', 'ace/token_iterator', 'ace/lib/lang'], function(require, exports, module) {
 
 
 var oop = require("../../lib/oop");
@@ -335,7 +336,7 @@ var CstyleBehaviour = function () {
                     selection: false
                 };
             } else if (CstyleBehaviour.isSaneInsertion(editor, session)) {
-                if (/[\]\}\)]/.test(line[cursor.column])) {
+                if (/[\]\}\)]/.test(line[cursor.column]) || editor.inMultiSelectMode) {
                     CstyleBehaviour.recordAutoInsert(editor, session, "}");
                     return {
                         text: '{}',
@@ -368,19 +369,24 @@ var CstyleBehaviour = function () {
                 CstyleBehaviour.clearMaybeInsertedClosing();
             }
             var rightChar = line.substring(cursor.column, cursor.column + 1);
-            if (rightChar == '}' || closing !== "") {
+            if (rightChar === '}') {
                 var openBracePos = session.findMatchingBracket({row: cursor.row, column: cursor.column+1}, '}');
                 if (!openBracePos)
                      return null;
-
-                var indent = this.getNextLineIndent(state, line.substring(0, cursor.column), session.getTabString());
+                var next_indent = this.$getIndent(session.getLine(openBracePos.row));
+            } else if (closing) {
                 var next_indent = this.$getIndent(line);
-
-                return {
-                    text: '\n' + indent + '\n' + next_indent + closing,
-                    selection: [1, indent.length, 1, indent.length]
-                };
+            } else {
+                return;
             }
+            var indent = next_indent + session.getTabString();
+
+            return {
+                text: '\n' + indent + '\n' + next_indent + closing,
+                selection: [1, indent.length, 1, indent.length]
+            };
+        } else {
+            CstyleBehaviour.clearMaybeInsertedClosing();
         }
     });
 
@@ -560,7 +566,7 @@ oop.inherits(CstyleBehaviour, Behaviour);
 exports.CstyleBehaviour = CstyleBehaviour;
 });
 
-ace.define('ace/mode/folding/csharp', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/range', 'ace/mode/folding/cstyle'], function(require, exports, module) {
+define('ace/mode/folding/csharp', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/range', 'ace/mode/folding/cstyle'], function(require, exports, module) {
 
 
 var oop = require("../../lib/oop");
@@ -669,7 +675,7 @@ oop.inherits(FoldMode, CFoldMode);
 
 });
 
-ace.define('ace/mode/folding/cstyle', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/range', 'ace/mode/folding/fold_mode'], function(require, exports, module) {
+define('ace/mode/folding/cstyle', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/range', 'ace/mode/folding/fold_mode'], function(require, exports, module) {
 
 
 var oop = require("../../lib/oop");

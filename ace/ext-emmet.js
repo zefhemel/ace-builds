@@ -28,7 +28,7 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-ace.define('ace/ext/emmet', ['require', 'exports', 'module' , 'ace/keyboard/hash_handler', 'ace/editor', 'ace/snippets', 'ace/range', 'ace/config'], function(require, exports, module) {
+define('ace/ext/emmet', ['require', 'exports', 'module' , 'ace/keyboard/hash_handler', 'ace/editor', 'ace/snippets', 'ace/range', 'ace/config'], function(require, exports, module) {
 
 var HashHandler = require("ace/keyboard/hash_handler").HashHandler;
 var Editor = require("ace/editor").Editor;
@@ -293,7 +293,7 @@ require("ace/config").defineOptions(Editor.prototype, "editor", {
 exports.setCore = function(e) {emmet = e;};
 });
 
-ace.define('ace/snippets', ['require', 'exports', 'module' , 'ace/lib/lang', 'ace/range', 'ace/keyboard/hash_handler', 'ace/tokenizer', 'ace/lib/dom'], function(require, exports, module) {
+define('ace/snippets', ['require', 'exports', 'module' , 'ace/lib/lang', 'ace/range', 'ace/keyboard/hash_handler', 'ace/tokenizer', 'ace/lib/dom'], function(require, exports, module) {
 
 var lang = require("./lib/lang")
 var Range = require("./range").Range
@@ -651,16 +651,26 @@ var SnippetManager = function() {
         return scope;
     };
 
+    this.getActiveScopes = function(editor) {
+        var scope = this.$getScope(editor);
+        var scopes = [scope];
+        var snippetMap = this.snippetMap;
+        if (snippetMap[scope] && snippetMap[scope].includeScopes) {
+            scopes.push.apply(scopes, snippetMap[scope].includeScopes);
+        }
+        scopes.push("_");
+        return scopes;
+    };
+
     this.expandWithTab = function(editor) {
         var cursor = editor.getCursorPosition();
         var line = editor.session.getLine(cursor.row);
         var before = line.substring(0, cursor.column);
         var after = line.substr(cursor.column);
 
-        var scope = this.$getScope(editor);
         var snippetMap = this.snippetMap;
         var snippet;
-        [scope, "_"].some(function(scope) {
+        this.getActiveScopes(editor).some(function(scope) {
             var snippets = snippetMap[scope];
             if (snippets)
                 snippet = this.findMatchingSnippet(snippets, before, after);
@@ -817,10 +827,9 @@ var SnippetManager = function() {
         return list;
     };
     this.getSnippetByName = function(name, editor) {
-        var scope = editor && this.$getScope(editor);
         var snippetMap = this.snippetNameMap;
         var snippet;
-        [scope, "_"].some(function(scope) {
+        this.getActiveScopes(editor).some(function(scope) {
             var snippets = snippetMap[scope];
             if (snippets)
                 snippet = snippets[name];
@@ -1053,6 +1062,10 @@ var TabstopManager = function(editor) {
     this.keyboardHandler = new HashHandler();
     this.keyboardHandler.bindKeys({
         "Tab": function(ed) {
+            if (exports.snippetManager && exports.snippetManager.expandWithTab(ed)) {
+                return;
+            }
+
             ed.tabstopManager.tabNext(1);
         },
         "Shift-Tab": function(ed) {

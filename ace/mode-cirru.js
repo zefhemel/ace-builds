@@ -1,9 +1,9 @@
 /* ***** BEGIN LICENSE BLOCK *****
  * Distributed under the BSD license:
  *
- * Copyright (c) 2012, Ajax.org B.V.
+ * Copyright (c) 2014, Ajax.org B.V.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
@@ -14,7 +14,7 @@
  *     * Neither the name of Ajax.org B.V. nor the
  *       names of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -26,123 +26,119 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *
- * Contributor(s):
- * 
- *
- *
  * ***** END LICENSE BLOCK ***** */
-
-define('ace/mode/pascal', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/text', 'ace/tokenizer', 'ace/mode/pascal_highlight_rules', 'ace/mode/folding/coffee'], function(require, exports, module) {
+ 
+define('ace/mode/cirru', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/text', 'ace/tokenizer', 'ace/mode/cirru_highlight_rules', 'ace/mode/folding/coffee'], function(require, exports, module) {
 
 
 var oop = require("../lib/oop");
 var TextMode = require("./text").Mode;
 var Tokenizer = require("../tokenizer").Tokenizer;
-var PascalHighlightRules = require("./pascal_highlight_rules").PascalHighlightRules;
-var FoldMode = require("./folding/coffee").FoldMode;
+var CirruHighlightRules = require("./cirru_highlight_rules").CirruHighlightRules;
+var CoffeeFoldMode = require("./folding/coffee").FoldMode;
 
 var Mode = function() {
-    this.HighlightRules = PascalHighlightRules;
-    this.foldingRules = new FoldMode();
+    this.HighlightRules = CirruHighlightRules;
+    this.foldingRules = new CoffeeFoldMode();
 };
 oop.inherits(Mode, TextMode);
 
 (function() {
-       
-    this.lineCommentStart = ["--", "//"];
-    this.blockComment = [
-        {start: "(*", end: "*)"},
-        {start: "{", end: "}"}
-    ];
-    
-    this.$id = "ace/mode/pascal";
+    this.lineCommentStart = "--";
+    this.$id = "ace/mode/cirru";
 }).call(Mode.prototype);
 
 exports.Mode = Mode;
 });
-
-define('ace/mode/pascal_highlight_rules', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/text_highlight_rules'], function(require, exports, module) {
+ 
+define('ace/mode/cirru_highlight_rules', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/text_highlight_rules'], function(require, exports, module) {
 
 
 var oop = require("../lib/oop");
 var TextHighlightRules = require("./text_highlight_rules").TextHighlightRules;
+var CirruHighlightRules = function() {
+    this.$rules = {
+        start: [{
+            token: 'constant.numeric',
+            regex: /[\d\.]+/
+        }, {
+            token: 'comment.line.double-dash',
+            regex: /--/,
+            next: 'comment',
+        }, {
+            token: 'storage.modifier',
+            regex: /\(/,
+        }, {
+            token: 'support.function',
+            regex: /[^\(\)\"\s]+/,
+            next: 'line'
+        }, {
+            token: 'string.quoted.double',
+            regex: /"/,
+            next: 'string',
+        }, {
+            token: 'storage.modifier',
+            regex: /\)/,
+        }],
+        comment: [{
+            token: 'comment.line.double-dash',
+            regex: /\ +[^\n]+/,
+            next: 'start',
+        }],
+        string: [{
+            token: 'string.quoted.double',
+            regex: /"/,
+            next: 'line',
+        }, {
+            token: 'constant.character.escape',
+            regex: /\\/,
+            next: 'escape',
+        }, {
+            token: 'string.quoted.double',
+            regex: /[^\\\"]+/,
+        }],
+        escape: [{
+            token: 'constant.character.escape',
+            regex: /./,
+            next: 'string',
+        }],
+        line: [{
+            token: 'constant.numeric',
+            regex: /[\d\.]+/
+        }, {
+            token: 'markup.raw',
+            regex: /^\s*/,
+            next: 'start',
+        }, {
+            token: 'variable.parameter',
+            regex: /[^\(\)\"\s]+/
+        }, {
+            token: 'storage.modifier',
+            regex: /\(/,
+            next: 'start'
+        }, {
+            token: 'storage.modifier',
+            regex: /\)/,
+        }, {
+            token: 'markup.raw',
+            regex: /^\ */,
+            next: 'start',
+        }, {
+            token: 'storage.modifier',
+            regex: /\$/,
+            next: 'start',
+        }, {
+            token: 'string.quoted.double',
+            regex: /"/,
+            next: 'string',
+        }]
+    }
 
-var PascalHighlightRules = function() {
-
-    this.$rules = { start: 
-       [ { caseInsensitive: true,
-           token: 'keyword.control.pascal',
-           regex: '\\b(?:(absolute|abstract|all|and|and_then|array|as|asm|attribute|begin|bindable|case|class|const|constructor|destructor|div|do|do|else|end|except|export|exports|external|far|file|finalization|finally|for|forward|goto|if|implementation|import|in|inherited|initialization|interface|interrupt|is|label|library|mod|module|name|near|nil|not|object|of|only|operator|or|or_else|otherwise|packed|pow|private|program|property|protected|public|published|qualified|record|repeat|resident|restricted|segment|set|shl|shr|then|to|try|type|unit|until|uses|value|var|view|virtual|while|with|xor))\\b' },
-         { caseInsensitive: true,           
-           token: 
-            [ 'variable.pascal', "text",
-              'storage.type.prototype.pascal',
-              'entity.name.function.prototype.pascal' ],
-           regex: '\\b(function|procedure)(\\s+)(\\w+)(\\.\\w+)?(?=(?:\\(.*?\\))?;\\s*(?:attribute|forward|external))' },
-         { caseInsensitive: true,
-           token: 
-            [ 'variable.pascal', "text",
-              'storage.type.function.pascal',
-              'entity.name.function.pascal' ],
-           regex: '\\b(function|procedure)(\\s+)(\\w+)(\\.\\w+)?' },
-         { token: 'constant.numeric.pascal',
-           regex: '\\b((0(x|X)[0-9a-fA-F]*)|(([0-9]+\\.?[0-9]*)|(\\.[0-9]+))((e|E)(\\+|-)?[0-9]+)?)(L|l|UL|ul|u|U|F|f|ll|LL|ull|ULL)?\\b' },
-         { token: 'punctuation.definition.comment.pascal',
-           regex: '--.*$',
-           push_: 
-            [ { token: 'comment.line.double-dash.pascal.one',
-                regex: '$',
-                next: 'pop' },
-              { defaultToken: 'comment.line.double-dash.pascal.one' } ] },
-         { token: 'punctuation.definition.comment.pascal',
-           regex: '//.*$',
-           push_: 
-            [ { token: 'comment.line.double-slash.pascal.two',
-                regex: '$',
-                next: 'pop' },
-              { defaultToken: 'comment.line.double-slash.pascal.two' } ] },
-         { token: 'punctuation.definition.comment.pascal',
-           regex: '\\(\\*',
-           push: 
-            [ { token: 'punctuation.definition.comment.pascal',
-                regex: '\\*\\)',
-                next: 'pop' },
-              { defaultToken: 'comment.block.pascal.one' } ] },
-         { token: 'punctuation.definition.comment.pascal',
-           regex: '\\{',
-           push: 
-            [ { token: 'punctuation.definition.comment.pascal',
-                regex: '\\}',
-                next: 'pop' },
-              { defaultToken: 'comment.block.pascal.two' } ] },
-         { token: 'punctuation.definition.string.begin.pascal',
-           regex: '"',
-           push: 
-            [ { token: 'constant.character.escape.pascal', regex: '\\\\.' },
-              { token: 'punctuation.definition.string.end.pascal',
-                regex: '"',
-                next: 'pop' },
-              { defaultToken: 'string.quoted.double.pascal' } ],
-            },
-         { token: 'punctuation.definition.string.begin.pascal',
-           regex: '\'',
-           push: 
-            [ { token: 'constant.character.escape.apostrophe.pascal',
-                regex: '\'\'' },
-              { token: 'punctuation.definition.string.end.pascal',
-                regex: '\'',
-                next: 'pop' },
-              { defaultToken: 'string.quoted.single.pascal' } ] },
-          { token: 'keyword.operator',
-           regex: '[+\\-;,/*%]|:=|=' } ] }
-    
-    this.normalizeRules();
 };
 
-oop.inherits(PascalHighlightRules, TextHighlightRules);
+oop.inherits(CirruHighlightRules, TextHighlightRules);
 
-exports.PascalHighlightRules = PascalHighlightRules;
+exports.CirruHighlightRules = CirruHighlightRules;
 });
 
 define('ace/mode/folding/coffee', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/folding/fold_mode', 'ace/range'], function(require, exports, module) {

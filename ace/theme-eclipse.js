@@ -28,7 +28,7 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-ace.define('ace/theme/eclipse', ['require', 'exports', 'module' , 'ace/lib/dom'], function(require, exports, module) {
+define('ace/theme/eclipse', ['require', 'exports', 'module' , 'ace/lib/dom'], function(require, exports, module) {
 
 
 exports.isDark = false;
@@ -43,6 +43,7 @@ background: #ebebeb;\
 }\
 .ace-eclipse {\
 background-color: #FFFFFF;\
+color: black;\
 }\
 .ace-eclipse .ace_fold {\
 background-color: rgb(60, 76, 114);\

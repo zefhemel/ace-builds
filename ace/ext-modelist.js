@@ -1,4 +1,4 @@
-ace.define('ace/ext/modelist', ['require', 'exports', 'module' ], function(require, exports, module) {
+define('ace/ext/modelist', ['require', 'exports', 'module' ], function(require, exports, module) {
 
 
 var modes = [];
@@ -44,6 +44,7 @@ var supportedModes = {
     BatchFile:   ["bat|cmd"],
     C9Search:    ["c9search_results"],
     C_Cpp:       ["cpp|c|cc|cxx|h|hh|hpp"],
+    Cirru:       ["cirru|cr"],
     Clojure:     ["clj"],
     Cobol:       ["CBL|COB"],
     coffee:      ["coffee|cf|cson|^Cakefile"],
@@ -91,6 +92,7 @@ var supportedModes = {
     Makefile:    ["^Makefile|^GNUmakefile|^makefile|^OCamlMakefile|make"],
     MATLAB:      ["matlab"],
     Markdown:    ["md|markdown"],
+    MEL:         ["mel"],
     MySQL:       ["mysql"],
     MUSHCode:    ["mc|mush"],
     Nix:         ["nix"],

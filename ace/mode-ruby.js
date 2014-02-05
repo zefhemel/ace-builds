@@ -28,7 +28,7 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-ace.define('ace/mode/ruby', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/text', 'ace/tokenizer', 'ace/mode/ruby_highlight_rules', 'ace/mode/matching_brace_outdent', 'ace/range', 'ace/mode/folding/coffee'], function(require, exports, module) {
+define('ace/mode/ruby', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/text', 'ace/tokenizer', 'ace/mode/ruby_highlight_rules', 'ace/mode/matching_brace_outdent', 'ace/range', 'ace/mode/folding/coffee'], function(require, exports, module) {
 
 
 var oop = require("../lib/oop");
@@ -85,12 +85,13 @@ oop.inherits(Mode, TextMode);
             doc.remove(new Range(row, indent.length-tab.length, row, indent.length));
     };
 
+    this.$id = "ace/mode/ruby";
 }).call(Mode.prototype);
 
 exports.Mode = Mode;
 });
 
-ace.define('ace/mode/ruby_highlight_rules', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/text_highlight_rules'], function(require, exports, module) {
+define('ace/mode/ruby_highlight_rules', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/text_highlight_rules'], function(require, exports, module) {
 
 
 var oop = require("../lib/oop");
@@ -243,11 +244,13 @@ var RubyHighlightRules = function() {
                 rules: {
                     heredoc: [{
                         onMatch:  function(value, currentState, stack) {
-                            if (value == stack[1]) {
+                            if (value === stack[1]) {
                                 stack.shift();
                                 stack.shift();
+                                this.next = stack[0] || "start";
                                 return "support.class";
                             }
+                            this.next = "";
                             return "string";
                         },
                         regex: ".*$",
@@ -258,16 +261,26 @@ var RubyHighlightRules = function() {
                         regex: "^ +"
                     }, {
                         onMatch:  function(value, currentState, stack) {
-                            if (value == stack[1]) {
+                            if (value === stack[1]) {
                                 stack.shift();
                                 stack.shift();
+                                this.next = stack[0] || "start";
                                 return "support.class";
                             }
+                            this.next = "";
                             return "string";
                         },
                         regex: ".*$",
                         next: "start"
                     }]
+                }
+            }, {
+                regex : "$",
+                token : "empty",
+                next : function(currentState, stack) {
+                    if (stack[0] === "heredoc" || stack[0] === "indentedHeredoc")
+                        return stack[0];
+                    return currentState;
                 }
             }, {
                 token : "keyword.operator",
@@ -303,7 +316,7 @@ oop.inherits(RubyHighlightRules, TextHighlightRules);
 exports.RubyHighlightRules = RubyHighlightRules;
 });
 
-ace.define('ace/mode/matching_brace_outdent', ['require', 'exports', 'module' , 'ace/range'], function(require, exports, module) {
+define('ace/mode/matching_brace_outdent', ['require', 'exports', 'module' , 'ace/range'], function(require, exports, module) {
 
 
 var Range = require("../range").Range;
@@ -343,7 +356,7 @@ var MatchingBraceOutdent = function() {};
 exports.MatchingBraceOutdent = MatchingBraceOutdent;
 });
 
-ace.define('ace/mode/folding/coffee', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/folding/fold_mode', 'ace/range'], function(require, exports, module) {
+define('ace/mode/folding/coffee', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/folding/fold_mode', 'ace/range'], function(require, exports, module) {
 
 
 var oop = require("../../lib/oop");

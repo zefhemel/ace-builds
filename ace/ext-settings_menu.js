@@ -30,7 +30,7 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-ace.define('ace/ext/settings_menu', ['require', 'exports', 'module' , 'ace/ext/menu_tools/generate_settings_menu', 'ace/ext/menu_tools/overlay_page', 'ace/editor'], function(require, exports, module) {
+define('ace/ext/settings_menu', ['require', 'exports', 'module' , 'ace/ext/menu_tools/generate_settings_menu', 'ace/ext/menu_tools/overlay_page', 'ace/editor'], function(require, exports, module) {
 
 var generateSettingsMenu = require('./menu_tools/generate_settings_menu').generateSettingsMenu;
 var overlayPage = require('./menu_tools/overlay_page').overlayPage;
@@ -47,7 +47,7 @@ module.exports.init = function(editor) {
 };
 });
 
-ace.define('ace/ext/menu_tools/generate_settings_menu', ['require', 'exports', 'module' , 'ace/ext/menu_tools/element_generator', 'ace/ext/menu_tools/add_editor_menu_options', 'ace/ext/menu_tools/get_set_functions'], function(require, exports, module) {
+define('ace/ext/menu_tools/generate_settings_menu', ['require', 'exports', 'module' , 'ace/ext/menu_tools/element_generator', 'ace/ext/menu_tools/add_editor_menu_options', 'ace/ext/menu_tools/get_set_functions'], function(require, exports, module) {
 
 var egen = require('./element_generator');
 var addEditorMenuOptions = require('./add_editor_menu_options').addEditorMenuOptions;
@@ -166,7 +166,7 @@ module.exports.generateSettingsMenu = function generateSettingsMenu (editor) {
 
 });
 
-ace.define('ace/ext/menu_tools/element_generator', ['require', 'exports', 'module' ], function(require, exports, module) {
+define('ace/ext/menu_tools/element_generator', ['require', 'exports', 'module' ], function(require, exports, module) {
 module.exports.createOption = function createOption (obj) {
     var attribute;
     var el = document.createElement('option');
@@ -221,7 +221,7 @@ module.exports.createSelection = function createSelection (id, values, clss) {
 
 });
 
-ace.define('ace/ext/menu_tools/add_editor_menu_options', ['require', 'exports', 'module' , 'ace/ext/modelist', 'ace/ext/themelist'], function(require, exports, module) {
+define('ace/ext/menu_tools/add_editor_menu_options', ['require', 'exports', 'module' , 'ace/ext/modelist', 'ace/ext/themelist'], function(require, exports, module) {
 module.exports.addEditorMenuOptions = function addEditorMenuOptions (editor) {
     var modelist = require('../modelist');
     var themelist = require('../themelist');
@@ -252,7 +252,7 @@ module.exports.addEditorMenuOptions = function addEditorMenuOptions (editor) {
 
     editor.menuOptions.setTheme = themelist.themes.map(function(theme) {
         return {
-            'textContent' : theme.desc,
+            'textContent' : theme.caption,
             'value' : theme.theme
         };
     });
@@ -266,7 +266,8 @@ module.exports.addEditorMenuOptions = function addEditorMenuOptions (editor) {
 };
 
 
-});ace.define('ace/ext/modelist', ['require', 'exports', 'module' ], function(require, exports, module) {
+});
+define('ace/ext/modelist', ['require', 'exports', 'module' ], function(require, exports, module) {
 
 
 var modes = [];
@@ -312,6 +313,7 @@ var supportedModes = {
     BatchFile:   ["bat|cmd"],
     C9Search:    ["c9search_results"],
     C_Cpp:       ["cpp|c|cc|cxx|h|hh|hpp"],
+    Cirru:       ["cirru|cr"],
     Clojure:     ["clj"],
     Cobol:       ["CBL|COB"],
     coffee:      ["coffee|cf|cson|^Cakefile"],
@@ -359,6 +361,7 @@ var supportedModes = {
     Makefile:    ["^Makefile|^GNUmakefile|^makefile|^OCamlMakefile|make"],
     MATLAB:      ["matlab"],
     Markdown:    ["md|markdown"],
+    MEL:         ["mel"],
     MySQL:       ["mysql"],
     MUSHCode:    ["mc|mush"],
     Nix:         ["nix"],
@@ -433,7 +436,7 @@ module.exports = {
 
 });
 
-ace.define('ace/ext/themelist', ['require', 'exports', 'module' ], function(require, exports, module) {
+define('ace/ext/themelist', ['require', 'exports', 'module' ], function(require, exports, module) {
 
 
 var themeData = [
@@ -468,18 +471,18 @@ var themeData = [
     ["Tomorrow Night Bright","tomorrow_night_bright"   ,  "dark"],
     ["Tomorrow Night 80s"   ,"tomorrow_night_eighties" ,  "dark"],
     ["Twilight"             ,"twilight"                ,  "dark"],
-    ["Vibrant Ink"          ,"vibrant_ink"             ,  "dark"],
-]
+    ["Vibrant Ink"          ,"vibrant_ink"             ,  "dark"]
+];
 
 
 exports.themesByName = {};
 exports.themes = themeData.map(function(data) {
     var name = data[1] || data[0].replace(/ /g, "_").toLowerCase();
     var theme = {
-         caption: data[0],
-         theme: "ace/theme/" + name,
-         isDark: data[2] == "dark",
-         name: name
+        caption: data[0],
+        theme: "ace/theme/" + name,
+        isDark: data[2] == "dark",
+        name: name
     };
     exports.themesByName[name] = theme;
     return theme;
@@ -487,7 +490,7 @@ exports.themes = themeData.map(function(data) {
 
 });
 
-ace.define('ace/ext/menu_tools/get_set_functions', ['require', 'exports', 'module' ], function(require, exports, module) {
+define('ace/ext/menu_tools/get_set_functions', ['require', 'exports', 'module' ], function(require, exports, module) {
 module.exports.getSetFunctions = function getSetFunctions (editor) {
     var out = [];
     var my = {
@@ -528,7 +531,7 @@ module.exports.getSetFunctions = function getSetFunctions (editor) {
 
 });
 
-ace.define('ace/ext/menu_tools/overlay_page', ['require', 'exports', 'module' , 'ace/lib/dom'], function(require, exports, module) {
+define('ace/ext/menu_tools/overlay_page', ['require', 'exports', 'module' , 'ace/lib/dom'], function(require, exports, module) {
 
 var dom = require("../../lib/dom");
 var cssText = "#ace_settingsmenu, #kbshortcutmenu {\

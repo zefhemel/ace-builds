@@ -28,7 +28,7 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-ace.define('ace/keyboard/vim', ['require', 'exports', 'module' , 'ace/keyboard/vim/commands', 'ace/keyboard/vim/maps/util', 'ace/lib/useragent'], function(require, exports, module) {
+define('ace/keyboard/vim', ['require', 'exports', 'module' , 'ace/keyboard/vim/commands', 'ace/keyboard/vim/maps/util', 'ace/lib/useragent'], function(require, exports, module) {
 
 
 var cmds = require("./vim/commands");
@@ -90,7 +90,7 @@ exports.handler = {
             if (util.currentMode === "insert") {            
                 this.onCompositionStartOrig(text);
             }
-        }
+        };
         if (enable) {
             if (!editor.onCompositionUpdateOrig) {
                 editor.onCompositionUpdateOrig = editor.onCompositionUpdate;
@@ -109,7 +109,7 @@ exports.handler = {
     },
 
     handleKeyboard: function(data, hashId, key, keyCode, e) {
-        if (hashId != 0 && (key == "" || key == "\x00"))
+        if (hashId !== 0 && (!key || keyCode == -1))
             return null;
         
         var editor = data.editor;
@@ -127,7 +127,7 @@ exports.handler = {
                 return {command: "null", passEvent: true};
             }
             return {command: coreCommands.stop};            
-        } else if ((key == "esc" && hashId == 0) || key == "ctrl-[") {
+        } else if ((key == "esc" && hashId === 0) || key == "ctrl-[") {
             return {command: coreCommands.stop};
         } else if (data.state == "start") {
             if (useragent.isMac && this.handleMacRepeat(data, hashId, key)) {
@@ -135,15 +135,15 @@ exports.handler = {
                 key = data.inputChar;
             }
             
-            if (hashId == -1 || hashId == 1 || hashId == 0 && key.length > 1) {
+            if (hashId == -1 || hashId == 1 || hashId === 0 && key.length > 1) {
                 if (cmds.inputBuffer.idle && startCommands[key])
                     return startCommands[key];
                 cmds.inputBuffer.push(editor, key);
                 return {command: "null", passEvent: false}; 
             } // if no modifier || shift: wait for input.
-            else if (key.length == 1 && (hashId == 0 || hashId == 4)) {
+            else if (key.length == 1 && (hashId === 0 || hashId == 4)) {
                 return {command: "null", passEvent: true};
-            } else if (key == "esc" && hashId == 0) {
+            } else if (key == "esc" && hashId === 0) {
                 return {command: coreCommands.stop};
             }
         } else {
@@ -187,7 +187,7 @@ exports.onCursorMove = function(e) {
 
 });
  
-ace.define('ace/keyboard/vim/commands', ['require', 'exports', 'module' , 'ace/lib/lang', 'ace/keyboard/vim/maps/util', 'ace/keyboard/vim/maps/motions', 'ace/keyboard/vim/maps/operators', 'ace/keyboard/vim/maps/aliases', 'ace/keyboard/vim/registers'], function(require, exports, module) {
+define('ace/keyboard/vim/commands', ['require', 'exports', 'module' , 'ace/lib/lang', 'ace/keyboard/vim/maps/util', 'ace/keyboard/vim/maps/motions', 'ace/keyboard/vim/maps/operators', 'ace/keyboard/vim/maps/aliases', 'ace/keyboard/vim/registers'], function(require, exports, module) {
 
 "never use strict";
 
@@ -757,7 +757,7 @@ var handleCursorMove = exports.onCursorMove = function(editor, e) {
     }
 };
 });
-ace.define('ace/keyboard/vim/maps/util', ['require', 'exports', 'module' , 'ace/keyboard/vim/registers', 'ace/lib/dom'], function(require, exports, module) {
+define('ace/keyboard/vim/maps/util', ['require', 'exports', 'module' , 'ace/keyboard/vim/registers', 'ace/lib/dom'], function(require, exports, module) {
 var registers = require("../registers");
 
 var dom = require("../../../lib/dom");
@@ -887,7 +887,7 @@ module.exports = {
 };
 });
 
-ace.define('ace/keyboard/vim/registers', ['require', 'exports', 'module' ], function(require, exports, module) {
+define('ace/keyboard/vim/registers', ['require', 'exports', 'module' ], function(require, exports, module) {
 
 "never use strict";
 
@@ -901,7 +901,7 @@ module.exports = {
 });
 
 
-ace.define('ace/keyboard/vim/maps/motions', ['require', 'exports', 'module' , 'ace/keyboard/vim/maps/util', 'ace/search', 'ace/range'], function(require, exports, module) {
+define('ace/keyboard/vim/maps/motions', ['require', 'exports', 'module' , 'ace/keyboard/vim/maps/util', 'ace/search', 'ace/range'], function(require, exports, module) {
 
 
 var util = require("./util");
@@ -1348,10 +1348,17 @@ module.exports = {
         }
     },
     "$": {
-        nav: function(editor) {
+        handlesCount: true,
+        nav: function(editor, range, count, param) {
+            if (count > 1) {
+                editor.navigateDown(count-1);
+            }
             editor.navigateLineEnd();
         },
-        sel: function(editor) {
+        sel: function(editor, range, count, param) {
+            if (count > 1) {
+                editor.selection.moveCursorBy(count-1, 0);
+            }
             editor.selection.selectLineEnd();
         }
     },
@@ -1527,10 +1534,12 @@ module.exports.up = module.exports.k;
 module.exports.down = module.exports.j;
 module.exports.pagedown = module.exports["ctrl-d"];
 module.exports.pageup = module.exports["ctrl-u"];
+module.exports.home = module.exports["0"];
+module.exports.end = module.exports["$"];
 
 });
  
-ace.define('ace/keyboard/vim/maps/operators', ['require', 'exports', 'module' , 'ace/keyboard/vim/maps/util', 'ace/keyboard/vim/registers'], function(require, exports, module) {
+define('ace/keyboard/vim/maps/operators', ['require', 'exports', 'module' , 'ace/keyboard/vim/maps/util', 'ace/keyboard/vim/registers'], function(require, exports, module) {
 
 
 
@@ -1695,7 +1704,7 @@ module.exports = {
  
 "use strict"
 
-ace.define('ace/keyboard/vim/maps/aliases', ['require', 'exports', 'module' ], function(require, exports, module) {
+define('ace/keyboard/vim/maps/aliases', ['require', 'exports', 'module' ], function(require, exports, module) {
 module.exports = {
     "x": {
         operator: {

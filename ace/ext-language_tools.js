@@ -28,7 +28,7 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-ace.define('ace/ext/language_tools', ['require', 'exports', 'module' , 'ace/snippets', 'ace/autocomplete', 'ace/config', 'ace/autocomplete/text_completer', 'ace/editor'], function(require, exports, module) {
+define('ace/ext/language_tools', ['require', 'exports', 'module' , 'ace/snippets', 'ace/autocomplete', 'ace/config', 'ace/autocomplete/text_completer', 'ace/editor'], function(require, exports, module) {
 
 
 var snippetManager = require("../snippets").snippetManager;
@@ -46,10 +46,9 @@ var keyWordCompleter = {
 
 var snippetCompleter = {
     getCompletions: function(editor, session, pos, prefix, callback) {
-        var scope = snippetManager.$getScope(editor);
         var snippetMap = snippetManager.snippetMap;
         var completions = [];
-        [scope, "_"].forEach(function(scope) {
+        snippetManager.getActiveScopes(editor).forEach(function(scope) {
             var snippets = snippetMap[scope] || [];
             for (var i = snippets.length; i--;) {
                 var s = snippets[i];
@@ -80,22 +79,39 @@ var expandSnippet = {
             editor.execCommand("indent");
     },
     bindKey: "tab"
-}
+};
 
 var onChangeMode = function(e, editor) {
-    var mode = editor.session.$mode;
-    var id = mode.$id
-    if (!snippetManager.files) snippetManager.files = {};
-    if (id && !snippetManager.files[id]) {
-        var snippetFilePath = id.replace("mode", "snippets");
-        config.loadModule(snippetFilePath, function(m) {
-            if (m) {
-                snippetManager.files[id] = m;
-                m.snippets = snippetManager.parseSnippetFile(m.snippetText);
-                snippetManager.register(m.snippets, m.scope);
+    loadSnippetsForMode(editor.session.$mode);
+};
+
+var loadSnippetsForMode = function(mode) {
+    var id = mode.$id;
+    if (!snippetManager.files)
+        snippetManager.files = {};
+    loadSnippetFile(id);
+    if (mode.modes)
+        mode.modes.forEach(loadSnippetsForMode);
+};
+
+var loadSnippetFile = function(id) {
+    if (!id || snippetManager.files[id])
+        return;
+    var snippetFilePath = id.replace("mode", "snippets");
+    snippetManager.files[id] = {};
+    config.loadModule(snippetFilePath, function(m) {
+        if (m) {
+            snippetManager.files[id] = m;
+            m.snippets = snippetManager.parseSnippetFile(m.snippetText);
+            snippetManager.register(m.snippets, m.scope);
+            if (m.includeScopes) {
+                snippetManager.snippetMap[m.scope].includeScopes = m.includeScopes;
+                m.includeScopes.forEach(function(x) {
+                    loadSnippetFile("ace/mode/" + x);
+                });
             }
-        });
-    }
+        }
+    });
 };
 
 var Editor = require("../editor").Editor;
@@ -103,7 +119,7 @@ require("../config").defineOptions(Editor.prototype, "editor", {
     enableBasicAutocompletion: {
         set: function(val) {
             if (val) {
-                this.completers = completers
+                this.completers = completers;
                 this.commands.addCommand(Autocomplete.startCommand);
             } else {
                 this.commands.removeCommand(Autocomplete.startCommand);
@@ -116,7 +132,7 @@ require("../config").defineOptions(Editor.prototype, "editor", {
             if (val) {
                 this.commands.addCommand(expandSnippet);
                 this.on("changeMode", onChangeMode);
-                onChangeMode(null, this)
+                onChangeMode(null, this);
             } else {
                 this.commands.removeCommand(expandSnippet);
                 this.off("changeMode", onChangeMode);
@@ -128,7 +144,7 @@ require("../config").defineOptions(Editor.prototype, "editor", {
 
 });
 
-ace.define('ace/snippets', ['require', 'exports', 'module' , 'ace/lib/lang', 'ace/range', 'ace/keyboard/hash_handler', 'ace/tokenizer', 'ace/lib/dom'], function(require, exports, module) {
+define('ace/snippets', ['require', 'exports', 'module' , 'ace/lib/lang', 'ace/range', 'ace/keyboard/hash_handler', 'ace/tokenizer', 'ace/lib/dom'], function(require, exports, module) {
 
 var lang = require("./lib/lang")
 var Range = require("./range").Range
@@ -486,16 +502,26 @@ var SnippetManager = function() {
         return scope;
     };
 
+    this.getActiveScopes = function(editor) {
+        var scope = this.$getScope(editor);
+        var scopes = [scope];
+        var snippetMap = this.snippetMap;
+        if (snippetMap[scope] && snippetMap[scope].includeScopes) {
+            scopes.push.apply(scopes, snippetMap[scope].includeScopes);
+        }
+        scopes.push("_");
+        return scopes;
+    };
+
     this.expandWithTab = function(editor) {
         var cursor = editor.getCursorPosition();
         var line = editor.session.getLine(cursor.row);
         var before = line.substring(0, cursor.column);
         var after = line.substr(cursor.column);
 
-        var scope = this.$getScope(editor);
         var snippetMap = this.snippetMap;
         var snippet;
-        [scope, "_"].some(function(scope) {
+        this.getActiveScopes(editor).some(function(scope) {
             var snippets = snippetMap[scope];
             if (snippets)
                 snippet = this.findMatchingSnippet(snippets, before, after);
@@ -652,10 +678,9 @@ var SnippetManager = function() {
         return list;
     };
     this.getSnippetByName = function(name, editor) {
-        var scope = editor && this.$getScope(editor);
         var snippetMap = this.snippetNameMap;
         var snippet;
-        [scope, "_"].some(function(scope) {
+        this.getActiveScopes(editor).some(function(scope) {
             var snippets = snippetMap[scope];
             if (snippets)
                 snippet = snippets[name];
@@ -888,6 +913,10 @@ var TabstopManager = function(editor) {
     this.keyboardHandler = new HashHandler();
     this.keyboardHandler.bindKeys({
         "Tab": function(ed) {
+            if (exports.snippetManager && exports.snippetManager.expandWithTab(ed)) {
+                return;
+            }
+
             ed.tabstopManager.tabNext(1);
         },
         "Shift-Tab": function(ed) {
@@ -930,7 +959,7 @@ exports.snippetManager = new SnippetManager();
 
 });
 
-ace.define('ace/autocomplete', ['require', 'exports', 'module' , 'ace/keyboard/hash_handler', 'ace/autocomplete/popup', 'ace/autocomplete/util', 'ace/lib/event', 'ace/lib/lang', 'ace/snippets'], function(require, exports, module) {
+define('ace/autocomplete', ['require', 'exports', 'module' , 'ace/keyboard/hash_handler', 'ace/autocomplete/popup', 'ace/autocomplete/util', 'ace/lib/event', 'ace/lib/lang', 'ace/snippets'], function(require, exports, module) {
 
 
 var HashHandler = require("./keyboard/hash_handler").HashHandler;
@@ -941,6 +970,7 @@ var lang = require("./lib/lang");
 var snippetManager = require("./snippets").snippetManager;
 
 var Autocomplete = function() {
+    this.autoInsert = true;
     this.keyboardHandler = new HashHandler();
     this.keyboardHandler.bindKeys(this.commands);
 
@@ -991,7 +1021,7 @@ var Autocomplete = function() {
     this.detach = function() {
         this.editor.keyBinding.removeKeyboardHandler(this.keyboardHandler);
         this.editor.off("changeSelection", this.changeListener);
-        this.editor.off("blur", this.changeListener);
+        this.editor.off("blur", this.blurListener);
         this.editor.off("mousedown", this.mousedownListener);
         this.editor.off("mousewheel", this.mousewheelListener);
         this.changeTimer.cancel();
@@ -1147,8 +1177,11 @@ var Autocomplete = function() {
 
             this.completions = new FilteredList(matches);
             this.completions.setFilter(results.prefix);
-            if (!this.completions.filtered.length)
+            var filtered = this.completions.filtered;
+            if (!filtered.length)
                 return this.detach();
+            if (this.autoInsert && filtered.length == 1)
+                return this.insertMatch(filtered[0]);
             this.openPopup(this.editor, results.prefix, keepPopupPosition);
         }.bind(this));
     };
@@ -1243,7 +1276,7 @@ exports.FilteredList = FilteredList;
 
 });
 
-ace.define('ace/autocomplete/popup', ['require', 'exports', 'module' , 'ace/edit_session', 'ace/virtual_renderer', 'ace/editor', 'ace/range', 'ace/lib/event', 'ace/lib/lang', 'ace/lib/dom'], function(require, exports, module) {
+define('ace/autocomplete/popup', ['require', 'exports', 'module' , 'ace/edit_session', 'ace/virtual_renderer', 'ace/editor', 'ace/range', 'ace/lib/event', 'ace/lib/lang', 'ace/lib/dom'], function(require, exports, module) {
 
 
 var EditSession = require("../edit_session").EditSession;
@@ -1542,7 +1575,7 @@ exports.AcePopup = AcePopup;
 
 });
 
-ace.define('ace/autocomplete/util', ['require', 'exports', 'module' ], function(require, exports, module) {
+define('ace/autocomplete/util', ['require', 'exports', 'module' ], function(require, exports, module) {
 
 
 exports.parForEach = function(array, fn, callback) {
@@ -1587,7 +1620,7 @@ exports.retrieveFollowingIdentifier = function(text, pos, regex) {
 
 });
 
-ace.define('ace/autocomplete/text_completer', ['require', 'exports', 'module' , 'ace/range'], function(require, exports, module) {
+define('ace/autocomplete/text_completer', ['require', 'exports', 'module' , 'ace/range'], function(require, exports, module) {
     var Range = require("ace/range").Range;
     
     var splitRegex = /[^a-zA-Z_0-9\$\-]+/;

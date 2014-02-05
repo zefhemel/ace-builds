@@ -28,7 +28,7 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-ace.define('ace/mode/ini', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/text', 'ace/tokenizer', 'ace/mode/ini_highlight_rules', 'ace/mode/folding/ini'], function(require, exports, module) {
+define('ace/mode/ini', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/text', 'ace/tokenizer', 'ace/mode/ini_highlight_rules', 'ace/mode/folding/ini'], function(require, exports, module) {
 
 
 var oop = require("../lib/oop");
@@ -46,12 +46,13 @@ oop.inherits(Mode, TextMode);
 (function() {
     this.lineCommentStart = ";";
     this.blockComment = {start: "/*", end: "*/"};
+    this.$id = "ace/mode/ini";
 }).call(Mode.prototype);
 
 exports.Mode = Mode;
 });
 
-ace.define('ace/mode/ini_highlight_rules', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/text_highlight_rules'], function(require, exports, module) {
+define('ace/mode/ini_highlight_rules', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/text_highlight_rules'], function(require, exports, module) {
 
 
 var oop = require("../lib/oop");
@@ -132,7 +133,7 @@ oop.inherits(IniHighlightRules, TextHighlightRules);
 exports.IniHighlightRules = IniHighlightRules;
 });
 
-ace.define('ace/mode/folding/ini', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/range', 'ace/mode/folding/fold_mode'], function(require, exports, module) {
+define('ace/mode/folding/ini', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/range', 'ace/mode/folding/fold_mode'], function(require, exports, module) {
 
 
 var oop = require("../../lib/oop");

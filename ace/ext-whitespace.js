@@ -28,7 +28,7 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-ace.define('ace/ext/whitespace', ['require', 'exports', 'module' , 'ace/lib/lang'], function(require, exports, module) {
+define('ace/ext/whitespace', ['require', 'exports', 'module' , 'ace/lib/lang'], function(require, exports, module) {
 
 
 var lang = require("../lib/lang");
@@ -59,6 +59,9 @@ exports.$detectIndentation = function(lines, fallback) {
         while (line[line.length - 1] == "\\")
             line = lines[i++];
     }
+    
+    if (!stats.length)
+        return;
 
     function getScore(indent) {
         var score = 0;

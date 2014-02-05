@@ -28,7 +28,7 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-ace.define('ace/keyboard/emacs', ['require', 'exports', 'module' , 'ace/lib/dom', 'ace/incremental_search', 'ace/commands/incremental_search_commands', 'ace/keyboard/hash_handler', 'ace/lib/keys'], function(require, exports, module) {
+define('ace/keyboard/emacs', ['require', 'exports', 'module' , 'ace/lib/dom', 'ace/incremental_search', 'ace/commands/incremental_search_commands', 'ace/keyboard/hash_handler', 'ace/lib/keys'], function(require, exports, module) {
 
 
 var dom = require("../lib/dom");
@@ -98,29 +98,29 @@ exports.handler.attach = function(editor) {
 
     editor.emacsMark = function() {
         return this.session.$emacsMark;
-    }
+    };
 
     editor.setEmacsMark = function(p) {
         this.session.$emacsMark = p;
-    }
+    };
 
     editor.pushEmacsMark = function(p, activate) {
         var prevMark = this.session.$emacsMark;
         if (prevMark)
             this.session.$emacsMarkRing.push(prevMark);
-        if (!p || activate) this.setEmacsMark(p)
+        if (!p || activate) this.setEmacsMark(p);
         else this.session.$emacsMarkRing.push(p);
-    }
+    };
 
     editor.popEmacsMark = function() {
         var mark = this.emacsMark();
         if (mark) { this.setEmacsMark(null); return mark; }
         return this.session.$emacsMarkRing.pop();
-    }
+    };
 
     editor.getLastEmacsMark = function(p) {
         return this.session.$emacsMark || this.session.$emacsMarkRing.slice(-1)[0];
-    }
+    };
 
     editor.on("click", $resetMarkMode);
     editor.on("changeSession", $kbSessionChange);
@@ -160,15 +160,15 @@ var $kbSessionChange = function(e) {
         e.session.$emacsMark = null;
     if (!e.session.hasOwnProperty('$emacsMarkRing'))
         e.session.$emacsMarkRing = [];
-}
+};
 
 var $resetMarkMode = function(e) {
     e.editor.session.$emacsMark = null;
-}
+};
 
-var keys = require("../lib/keys").KEY_MODS,
-    eMods = {C: "ctrl", S: "shift", M: "alt", CMD: "command"},
-    combinations = ["C-S-M-CMD",
+var keys = require("../lib/keys").KEY_MODS;
+var eMods = {C: "ctrl", S: "shift", M: "alt", CMD: "command"};
+var combinations = ["C-S-M-CMD",
                     "S-M-CMD", "C-M-CMD", "C-S-CMD", "C-S-M",
                     "M-CMD", "S-CMD", "S-M", "C-CMD", "C-M", "C-S",
                     "CMD", "M", "S", "C"];
@@ -185,11 +185,11 @@ exports.handler.onCopy = function(e, editor) {
     editor.$handlesEmacsOnCopy = true;
     exports.handler.commands.killRingSave.exec(editor);
     delete editor.$handlesEmacsOnCopy;
-}
+};
 
 exports.handler.onPaste = function(e, editor) {
     editor.pushEmacsMark(editor.getCursorPosition());
-}
+};
 
 exports.handler.bindKey = function(key, command) {
     if (!key)
@@ -207,14 +207,14 @@ exports.handler.bindKey = function(key, command) {
             if (!ckb[keyPart]) ckb[keyPart] = "null";
         });
     }, this);
-}
+};
 
 exports.handler.handleKeyboard = function(data, hashId, key, keyCode) {
     var editor = data.editor;
     if (hashId == -1) {
         editor.pushEmacsMark();
         if (data.count) {
-            var str = Array(data.count + 1).join(key);
+            var str = new Array(data.count + 1).join(key);
             data.count = null;
             return {command: "insertstring", args: str};
         }
@@ -282,7 +282,7 @@ exports.handler.handleKeyboard = function(data, hashId, key, keyCode) {
                 }
             };
         } else {
-            if (!args) args = {}
+            if (!args) args = {};
             if (typeof args === 'object') args.count = count;
         }
     }
@@ -456,8 +456,8 @@ exports.handler.addCommands({
     killLine: function(editor) {
         editor.pushEmacsMark(null);
         var pos = editor.getCursorPosition();
-        if (pos.column == 0 &&
-            editor.session.doc.getLine(pos.row).length == 0) {
+        if (pos.column === 0 &&
+            editor.session.doc.getLine(pos.row).length === 0) {
             editor.selection.selectLine();
         } else {
             editor.clearSelection();
@@ -541,7 +541,7 @@ exports.killRing = {
 
 });
 
-ace.define('ace/incremental_search', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/range', 'ace/search', 'ace/search_highlight', 'ace/commands/incremental_search_commands', 'ace/lib/dom', 'ace/commands/command_manager', 'ace/editor', 'ace/config'], function(require, exports, module) {
+define('ace/incremental_search', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/range', 'ace/search', 'ace/search_highlight', 'ace/commands/incremental_search_commands', 'ace/lib/dom', 'ace/commands/command_manager', 'ace/editor', 'ace/config'], function(require, exports, module) {
 
 
 var oop = require("./lib/oop");
@@ -726,7 +726,7 @@ require("./config").defineOptions(Editor.prototype, "editor", {
 
 });
 
-ace.define('ace/commands/incremental_search_commands', ['require', 'exports', 'module' , 'ace/config', 'ace/lib/oop', 'ace/keyboard/hash_handler', 'ace/commands/occur_commands'], function(require, exports, module) {
+define('ace/commands/incremental_search_commands', ['require', 'exports', 'module' , 'ace/config', 'ace/lib/oop', 'ace/keyboard/hash_handler', 'ace/commands/occur_commands'], function(require, exports, module) {
 
 var config = require("../config");
 var oop = require("../lib/oop");
@@ -873,7 +873,7 @@ exports.IncrementalSearchKeyboardHandler = IncrementalSearchKeyboardHandler;
 
 });
 
-ace.define('ace/commands/occur_commands', ['require', 'exports', 'module' , 'ace/config', 'ace/occur', 'ace/keyboard/hash_handler', 'ace/lib/oop'], function(require, exports, module) {
+define('ace/commands/occur_commands', ['require', 'exports', 'module' , 'ace/config', 'ace/occur', 'ace/keyboard/hash_handler', 'ace/lib/oop'], function(require, exports, module) {
 
 var config = require("../config"),
     Occur = require("../occur").Occur;
@@ -952,7 +952,7 @@ exports.occurStartCommand = occurStartCommand;
 
 });
 
-ace.define('ace/occur', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/range', 'ace/search', 'ace/edit_session', 'ace/search_highlight', 'ace/lib/dom'], function(require, exports, module) {
+define('ace/occur', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/range', 'ace/search', 'ace/edit_session', 'ace/search_highlight', 'ace/lib/dom'], function(require, exports, module) {
 
 
 var oop = require("./lib/oop");

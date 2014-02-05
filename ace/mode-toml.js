@@ -33,7 +33,7 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-ace.define('ace/mode/toml', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/text', 'ace/tokenizer', 'ace/mode/toml_highlight_rules', 'ace/mode/folding/ini'], function(require, exports, module) {
+define('ace/mode/toml', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/text', 'ace/tokenizer', 'ace/mode/toml_highlight_rules', 'ace/mode/folding/ini'], function(require, exports, module) {
 
 
 var oop = require("../lib/oop");
@@ -50,12 +50,13 @@ oop.inherits(Mode, TextMode);
 
 (function() {
     this.lineCommentStart = "#";
+    this.$id = "ace/mode/toml";
 }).call(Mode.prototype);
 
 exports.Mode = Mode;
 });
 
-ace.define('ace/mode/toml_highlight_rules', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/text_highlight_rules'], function(require, exports, module) {
+define('ace/mode/toml_highlight_rules', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/text_highlight_rules'], function(require, exports, module) {
 
 
 var oop = require("../lib/oop");
@@ -124,7 +125,7 @@ oop.inherits(TomlHighlightRules, TextHighlightRules);
 exports.TomlHighlightRules = TomlHighlightRules;
 });
 
-ace.define('ace/mode/folding/ini', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/range', 'ace/mode/folding/fold_mode'], function(require, exports, module) {
+define('ace/mode/folding/ini', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/range', 'ace/mode/folding/fold_mode'], function(require, exports, module) {
 
 
 var oop = require("../../lib/oop");
