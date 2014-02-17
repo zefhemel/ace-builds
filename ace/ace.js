@@ -1777,7 +1777,7 @@ var Editor = function(renderer, session) {
 
     this.setSession(session || new EditSession(""));
     config.resetOptions(this);
-    config._emit("editor", this);
+    config._signal("editor", this);
 };
 
 (function(){
@@ -2031,7 +2031,7 @@ var Editor = function(renderer, session) {
         this.session.getUseWrapMode() && this.renderer.adjustWrapLimit();
         this.renderer.updateFull();
 
-        this._emit("changeSession", {
+        this._signal("changeSession", {
             session: session,
             oldSession: oldSession
         });
@@ -2148,7 +2148,7 @@ var Editor = function(renderer, session) {
             lastRow = Infinity;
         this.renderer.updateLines(range.start.row, lastRow);
 
-        this._emit("change", e);
+        this._signal("change", e);
         this.$cursorChange();
     };
 
@@ -2174,7 +2174,7 @@ var Editor = function(renderer, session) {
 
         this.$highlightBrackets();
         this.$updateHighlightActiveLine();
-        this._emit("changeSelection");
+        this._signal("changeSelection");
     };
 
     this.$updateHighlightActiveLine = function() {
@@ -2199,7 +2199,7 @@ var Editor = function(renderer, session) {
             session.$highlightLineMarker.start.row = highlight.row;
             session.$highlightLineMarker.end.row = highlight.row;
             session.$highlightLineMarker.start.column = highlight.column;
-            session._emit("changeBackMarker");
+            session._signal("changeBackMarker");
         }
     };
 
@@ -2222,7 +2222,7 @@ var Editor = function(renderer, session) {
         var re = this.$highlightSelectedWord && this.$getSelectionHighLightRegexp();
         this.session.highlight(re);
 
-        this._emit("changeSelection");
+        this._signal("changeSelection");
     };
 
     this.$getSelectionHighLightRegexp = function() {
@@ -3203,7 +3203,7 @@ var Editor = function(renderer, session) {
     };
     this.destroy = function() {
         this.renderer.destroy();
-        this._emit("destroy", this);
+        this._signal("destroy", this);
     };
     this.setAutoScrollEditorIntoView = function(enable) {
         if (!enable)
@@ -3274,7 +3274,7 @@ config.defineOptions(Editor.prototype, "editor", {
     selectionStyle: {
         set: function(style) {
             this.onSelectionChange();
-            this._emit("changeSelectionStyle", {data: style});
+            this._signal("changeSelectionStyle", {data: style});
         },
         initialValue: "line"
     },
@@ -5633,7 +5633,7 @@ var EditSession = function(text, mode) {
 
     config.resetOptions(this);
     this.setMode(mode);
-    config._emit("session", this);
+    config._signal("session", this);
 };
 
 
@@ -5722,7 +5722,7 @@ var EditSession = function(text, mode) {
         }
 
         this.bgTokenizer.$updateOnChange(delta);
-        this._emit("change", e);
+        this._signal("change", e);
     };
     this.setValue = function(text) {
         this.doc.setValue(text);
@@ -5862,11 +5862,11 @@ var EditSession = function(text, mode) {
         if (!this.$decorations[row])
             this.$decorations[row] = "";
         this.$decorations[row] += " " + className;
-        this._emit("changeBreakpoint", {});
+        this._signal("changeBreakpoint", {});
     };
     this.removeGutterDecoration = function(row, className) {
         this.$decorations[row] = (this.$decorations[row] || "").replace(" " + className, "");
-        this._emit("changeBreakpoint", {});
+        this._signal("changeBreakpoint", {});
     };
     this.getBreakpoints = function() {
         return this.$breakpoints;
@@ -5876,11 +5876,11 @@ var EditSession = function(text, mode) {
         for (var i=0; i<rows.length; i++) {
             this.$breakpoints[rows[i]] = "ace_breakpoint";
         }
-        this._emit("changeBreakpoint", {});
+        this._signal("changeBreakpoint", {});
     };
     this.clearBreakpoints = function() {
         this.$breakpoints = [];
-        this._emit("changeBreakpoint", {});
+        this._signal("changeBreakpoint", {});
     };
     this.setBreakpoint = function(row, className) {
         if (className === undefined)
@@ -5889,11 +5889,11 @@ var EditSession = function(text, mode) {
             this.$breakpoints[row] = className;
         else
             delete this.$breakpoints[row];
-        this._emit("changeBreakpoint", {});
+        this._signal("changeBreakpoint", {});
     };
     this.clearBreakpoint = function(row) {
         delete this.$breakpoints[row];
-        this._emit("changeBreakpoint", {});
+        this._signal("changeBreakpoint", {});
     };
     this.addMarker = function(range, clazz, type, inFront) {
         var id = this.$markerId++;
@@ -5909,10 +5909,10 @@ var EditSession = function(text, mode) {
 
         if (inFront) {
             this.$frontMarkers[id] = marker;
-            this._emit("changeFrontMarker")
+            this._signal("changeFrontMarker")
         } else {
             this.$backMarkers[id] = marker;
-            this._emit("changeBackMarker")
+            this._signal("changeBackMarker")
         }
 
         return id;
@@ -5926,10 +5926,10 @@ var EditSession = function(text, mode) {
 
         if (inFront) {
             this.$frontMarkers[id] = marker;
-            this._emit("changeFrontMarker")
+            this._signal("changeFrontMarker")
         } else {
             this.$backMarkers[id] = marker;
-            this._emit("changeBackMarker")
+            this._signal("changeBackMarker")
         }
 
         return marker;
@@ -5942,7 +5942,7 @@ var EditSession = function(text, mode) {
         var markers = marker.inFront ? this.$frontMarkers : this.$backMarkers;
         if (marker) {
             delete (markers[markerId]);
-            this._emit(marker.inFront ? "changeFrontMarker" : "changeBackMarker");
+            this._signal(marker.inFront ? "changeFrontMarker" : "changeBackMarker");
         }
     };
     this.getMarkers = function(inFront) {
@@ -5970,7 +5970,7 @@ var EditSession = function(text, mode) {
     };
     this.setAnnotations = function(annotations) {
         this.$annotations = annotations;
-        this._emit("changeAnnotation", {});
+        this._signal("changeAnnotation", {});
     };
     this.getAnnotations = function() {
         return this.$annotations || [];
@@ -6039,7 +6039,7 @@ var EditSession = function(text, mode) {
     this.onReloadTokenizer = function(e) {
         var rows = e.data;
         this.bgTokenizer.start(rows.first);
-        this._emit("tokenizerUpdate", e);
+        this._signal("tokenizerUpdate", e);
     };
 
     this.$modes = {};
@@ -6106,7 +6106,7 @@ var EditSession = function(text, mode) {
             this.bgTokenizer = new BackgroundTokenizer(tokenizer);
             var _self = this;
             this.bgTokenizer.addEventListener("update", function(e) {
-                _self._emit("tokenizerUpdate", e);
+                _self._signal("tokenizerUpdate", e);
             });
         } else {
             this.bgTokenizer.setTokenizer(tokenizer);
@@ -6539,7 +6539,7 @@ var EditSession = function(text, mode) {
                 this.$updateWrapData(0, len - 1);
             }
 
-            this._emit("changeWrapMode");
+            this._signal("changeWrapMode");
         }
     };
     this.getUseWrapMode = function() {
@@ -6552,7 +6552,7 @@ var EditSession = function(text, mode) {
                 max: max
             };
             this.$modified = true;
-            this._emit("changeWrapMode");
+            this._signal("changeWrapMode");
         }
     };
     this.adjustWrapLimit = function(desiredLimit, $printMargin) {
@@ -6566,7 +6566,7 @@ var EditSession = function(text, mode) {
             if (this.$useWrapMode) {
                 this.$updateWrapData(0, this.getLength() - 1);
                 this.$resetRowCache(0);
-                this._emit("changeWrapLimit");
+                this._signal("changeWrapLimit");
             }
             return true;
         }
@@ -7245,7 +7245,7 @@ config.defineOptions(EditSession.prototype, "session", {
         initialValue: "auto"
     },
     firstLineNumber: {
-        set: function() {this._emit("changeBreakpoint");},
+        set: function() {this._signal("changeBreakpoint");},
         initialValue: 1
     },
     useWorker: {
@@ -7266,13 +7266,13 @@ config.defineOptions(EditSession.prototype, "session", {
             this.$modified = true;
             this.$rowLengthCache = [];
             this.$tabSize = tabSize;
-            this._emit("changeTabSize");
+            this._signal("changeTabSize");
         },
         initialValue: 4,
         handlesSet: true
     },
     overwrite: {
-        set: function(val) {this._emit("changeOverwrite");},
+        set: function(val) {this._signal("changeOverwrite");},
         initialValue: false
     },
     newLineMode: {
@@ -8802,7 +8802,9 @@ var TextHighlightRules = function() {
     };
 
     this.embedRules = function (HighlightRules, prefix, escapeRules, states, append) {
-        var embedRules = new HighlightRules().getRules();
+        var embedRules = typeof HighlightRules == "function"
+            ? new HighlightRules().getRules()
+            : HighlightRules;
         if (states) {
             for (var i = 0; i < states.length; i++)
                 states[i] = prefix + states[i];
@@ -9281,7 +9283,7 @@ var Document = function(text) {
             range: range,
             lines: lines
         };
-        this._emit("change", { data: delta });
+        this._signal("change", { data: delta });
         return end || range.end;
     };
     this.insertNewLine = function(position) {
@@ -9301,7 +9303,7 @@ var Document = function(text) {
             range: Range.fromPoints(position, end),
             text: this.getNewLineCharacter()
         };
-        this._emit("change", { data: delta });
+        this._signal("change", { data: delta });
 
         return end;
     };
@@ -9324,12 +9326,12 @@ var Document = function(text) {
             range: Range.fromPoints(position, end),
             text: text
         };
-        this._emit("change", { data: delta });
+        this._signal("change", { data: delta });
 
         return end;
     };
     this.remove = function(range) {
-        if (!range instanceof Range)
+        if (!(range instanceof Range))
             range = Range.fromPoints(range.start, range.end);
         range.start = this.$clipPosition(range.start);
         range.end = this.$clipPosition(range.end);
@@ -9375,7 +9377,7 @@ var Document = function(text) {
             range: range,
             text: removed
         };
-        this._emit("change", { data: delta });
+        this._signal("change", { data: delta });
         return range.start;
     };
     this.removeLines = function(firstRow, lastRow) {
@@ -9394,7 +9396,7 @@ var Document = function(text) {
             nl: this.getNewLineCharacter(),
             lines: removed
         };
-        this._emit("change", { data: delta });
+        this._signal("change", { data: delta });
         return removed;
     };
     this.removeNewLine = function(row) {
@@ -9411,10 +9413,10 @@ var Document = function(text) {
             range: range,
             text: this.getNewLineCharacter()
         };
-        this._emit("change", { data: delta });
+        this._signal("change", { data: delta });
     };
     this.replace = function(range, text) {
-        if (!range instanceof Range)
+        if (!(range instanceof Range))
             range = Range.fromPoints(range.start, range.end);
         if (text.length == 0 && range.isEmpty())
             return range.start;
@@ -9597,7 +9599,7 @@ var Anchor = exports.Anchor = function(doc, row, column) {
 
         this.row = pos.row;
         this.column = pos.column;
-        this._emit("change", {
+        this._signal("change", {
             old: old,
             value: pos
         });
@@ -9708,7 +9710,7 @@ var BackgroundTokenizer = function(tokenizer, editor) {
             first: firstRow,
             last: lastRow
         };
-        this._emit("update", {data: data});
+        this._signal("update", {data: data});
     };
     this.start = function(startRow) {
         this.currentLine = Math.min(startRow || 0, this.currentLine, this.doc.getLength());
@@ -12487,10 +12489,7 @@ overflow: hidden;\
 font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace;\
 font-size: 12px;\
 line-height: normal;\
-}\
-.ace_editor .ace_line {\
 direction: ltr;\
-unicode-bidi: bidi-override;\
 }\
 .ace_scroller {\
 position: absolute;\
@@ -15531,7 +15530,7 @@ var EditSession = require("./edit_session").EditSession;
             this.$onRemoveRange(removed);
 
         if (this.rangeCount > 1 && !this.inMultiSelectMode) {
-            this._emit("multiSelect");
+            this._signal("multiSelect");
             this.inMultiSelectMode = true;
             this.session.$undoSelect = false;
             this.rangeList.attach(this.session);
@@ -15566,7 +15565,7 @@ var EditSession = require("./edit_session").EditSession;
     this.$onAddRange = function(range) {
         this.rangeCount = this.rangeList.ranges.length;
         this.ranges.unshift(range);
-        this._emit("addRange", {range: range});
+        this._signal("addRange", {range: range});
     };
 
     this.$onRemoveRange = function(removed) {
@@ -15582,11 +15581,11 @@ var EditSession = require("./edit_session").EditSession;
             this.ranges.splice(index, 1);
         }
 
-        this._emit("removeRange", {ranges: removed});
+        this._signal("removeRange", {ranges: removed});
 
         if (this.rangeCount == 0 && this.inMultiSelectMode) {
             this.inMultiSelectMode = false;
-            this._emit("singleSelect");
+            this._signal("singleSelect");
             this.session.$undoSelect = true;
             this.rangeList.detach(this.session);
         }
@@ -16518,7 +16517,7 @@ var WorkerClient = function(topLevelNamespaces, mod, classname, workerUrl) {
                 break;
 
             case "event":
-                this._emit(msg.name, {data: msg.data});
+                this._signal(msg.name, {data: msg.data});
                 break;
 
             case "call":
@@ -16542,7 +16541,7 @@ var WorkerClient = function(topLevelNamespaces, mod, classname, workerUrl) {
     };
 
     this.terminate = function() {
-        this._emit("terminate", {});
+        this._signal("terminate", {});
         this.deltaQueue = null;
         this.$worker.terminate();
         this.$worker = null;
@@ -16636,7 +16635,7 @@ var UIWorkerClient = function(topLevelNamespaces, mod, classname) {
         if (msg.command)
             main[msg.command].apply(main, msg.args);
         else if (msg.event)
-            sender._emit(msg.event, msg.data);
+            sender._signal(msg.event, msg.data);
     };
 
     sender.postMessage = function(msg) {
@@ -17132,8 +17131,9 @@ exports.showErrorMarker = function(editor, dir) {
     var gutterAnno;
     if (annotations) {
         var annotation = annotations[0];
-        if (annotation.pos && annotation.column == null)
-            pos.column = annotation.pos.sc;
+        pos.column = (annotation.pos && typeof annotation.column != "number"
+            ? annotation.pos.sc
+            : annotation.column) || 0;
         pos.row = annotation.row;
         gutterAnno = editor.renderer.$gutterLayer.$annotations[pos.row];
     } else if (oldWidget) {

@@ -8,4 +8,4 @@ npm install
 mv build/src ../ace
 cd ..
 rm -rf ace/snippets
-rm ace/worker-*
+rm ace/worker-* ace/theme-*

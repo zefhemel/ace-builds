@@ -329,6 +329,7 @@ var supportedModes = {
     EJS:         ["ejs"],
     Forth:       ["frt|fs|ldr"],
     FTL:         ["ftl"],
+    Gherkin:     ["feature"],
     Glsl:        ["glsl|frag|vert"],
     golang:      ["go"],
     Groovy:      ["groovy"],
@@ -384,6 +385,7 @@ var supportedModes = {
     SASS:        ["sass"],
     SCAD:        ["scad"],
     Scala:       ["scala"],
+    Smarty:      ["smarty|tpl"],
     Scheme:      ["scm|rkt"],
     SCSS:        ["scss"],
     SH:          ["sh|bash|^.bashrc"],
@@ -630,4 +632,8 @@ module.exports.overlayPage = function overlayPage(editor, contentElement, top, r
     editor.blur();
 };
 
-});
+});;
+                (function() {
+                    window.require(["ace/ext/settings_menu"], function() {});
+                })();
+            

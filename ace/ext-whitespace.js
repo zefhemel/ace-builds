@@ -56,7 +56,7 @@ exports.$detectIndentation = function(lines, fallback) {
             stats[spaces] = (stats[spaces] || 0) + 1;
         }
         prevSpaces = spaces;
-        while (line[line.length - 1] == "\\")
+        while (i < max && line[line.length - 1] == "\\")
             line = lines[i++];
     }
     
@@ -207,3 +207,8 @@ exports.commands = [{
 }];
 
 });
+;
+                (function() {
+                    window.require(["ace/ext/whitespace"], function() {});
+                })();
+            

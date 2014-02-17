@@ -433,7 +433,7 @@ var SnippetManager = function() {
                 return s.getTabSize();
             case "FILENAME":
             case "FILEPATH":
-                return "ace.ajax.org";
+                return "";
             case "FULLNAME":
                 return "Ace";
         }
@@ -587,8 +587,9 @@ var SnippetManager = function() {
                 continue;
             var id = p.tabstopId;
             var i1 = tokens.indexOf(p, i + 1);
-            if (expanding[id] == p) { 
-                expanding[id] = null;
+            if (expanding[id]) {
+                if (expanding[id] === p)
+                    expanding[id] = null;
                 continue;
             }
             
@@ -1107,3 +1108,8 @@ exports.snippetManager = new SnippetManager();
 
 
 });
+;
+                (function() {
+                    window.require(["ace/ext/emmet"], function() {});
+                })();
+            
