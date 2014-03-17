@@ -69,6 +69,10 @@ var CirruHighlightRules = function() {
             token: 'storage.modifier',
             regex: /\(/,
         }, {
+            token: 'storage.modifier',
+            regex: /\,/,
+            next: 'line',
+        }, {
             token: 'support.function',
             regex: /[^\(\)\"\s]+/,
             next: 'line'
@@ -110,6 +114,10 @@ var CirruHighlightRules = function() {
             regex: /^\s*/,
             next: 'start',
         }, {
+            token: 'storage.modifier',
+            regex: /\$/,
+            next: 'start',
+        }, {
             token: 'variable.parameter',
             regex: /[^\(\)\"\s]+/
         }, {
@@ -122,10 +130,6 @@ var CirruHighlightRules = function() {
         }, {
             token: 'markup.raw',
             regex: /^\ */,
-            next: 'start',
-        }, {
-            token: 'storage.modifier',
-            regex: /\$/,
             next: 'start',
         }, {
             token: 'string.quoted.double',

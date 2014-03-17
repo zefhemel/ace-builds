@@ -83,8 +83,7 @@ AceEmmetEditor.prototype = {
     },
     setCaretPos: function(index){
         var pos = this.ace.indexToPosition(index);
-        this.ace.clearSelection();
-        this.ace.selection.moveCursorToPosition(pos);
+        this.ace.selection.moveToPosition(pos);
     },
     getCurrentLine: function() {
         var row = this.ace.getCursorPosition().row;
