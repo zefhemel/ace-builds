@@ -972,6 +972,7 @@ var snippetManager = require("./snippets").snippetManager;
 
 var Autocomplete = function() {
     this.autoInsert = true;
+    this.autoSelect = true;
     this.keyboardHandler = new HashHandler();
     this.keyboardHandler.bindKeys(this.commands);
 
@@ -1001,8 +1002,8 @@ var Autocomplete = function() {
         this.popup.setData(this.completions.filtered);
 
         var renderer = editor.renderer;
+        this.popup.setRow(this.autoSelect ? 0 : -1);
         if (!keepPopupPosition) {
-            this.popup.setRow(0);
             this.popup.setFontSize(editor.getFontSize());
 
             var lineHeight = renderer.layerConfig.lineHeight;
@@ -1103,7 +1104,13 @@ var Autocomplete = function() {
 
         "Esc": function(editor) { editor.completer.detach(); },
         "Space": function(editor) { editor.completer.detach(); editor.insert(" ");},
-        "Return": function(editor) { editor.completer.insertMatch(); },
+        "Return": function(editor) {
+            if(editor.completer.popup.getRow() > -1) {
+                editor.completer.insertMatch();
+            } else {
+                editor.insert("\n");
+            }
+        },
         "Shift-Return": function(editor) { editor.completer.insertMatch(true); },
         "Tab": function(editor) { editor.completer.insertMatch(); },
 

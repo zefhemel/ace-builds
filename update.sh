@@ -1,7 +1,7 @@
 #!/bin/sh
 
 rm -rf ace
-curl -L https://github.com/ajaxorg/ace/archive/master.tar.gz | tar xzf -
+curl -L https://github.com/zedapp/ace/archive/master.tar.gz | tar xzf -
 cd ace-master
 npm install
 ./Makefile.dryice.js normal
