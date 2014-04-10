@@ -248,6 +248,7 @@ exports.runEmmetCommand = function(editor) {
     } catch(e) {
         editor._signal("changeStatus", typeof e == "string" ? e : e.message);
         console.log(e);
+        result = false
     }
     return result;
 };
@@ -631,7 +632,7 @@ var SnippetManager = function() {
         var scope = editor.session.$mode.$id || "";
         scope = scope.split("/").pop();
         if (scope === "html" || scope === "php") {
-            if (scope === "php") 
+            if (scope === "php" && !editor.session.$mode.inlinePhp) 
                 scope = "html";
             var c = editor.getCursorPosition()
             var state = editor.session.getState(c.row);

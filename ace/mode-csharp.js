@@ -86,9 +86,6 @@ var CSharpHighlightRules = function() {
                 regex : "\\/\\*",
                 next : "comment"
             }, {
-                token : "string.regexp",
-                regex : "[/](?:(?:\\[(?:\\\\]|[^\\]])+\\])|(?:\\\\/|[^\\]/]))*[/]\\w*\\s*(?=[).,;]|$)"
-            }, {
                 token : "string", // character
                 regex : /'(?:.|\\(:?u[\da-fA-F]+|x[\da-fA-F]+|[tbrf'"n]))'/
             }, {

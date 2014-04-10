@@ -668,7 +668,9 @@ var Anchor = exports.Anchor = function(doc, row, column) {
                 row += end.row - start.row;
             }
         } else if (delta.action === "insertLines") {
-            if (start.row <= row) {
+            if (start.row === row && column === 0 && this.$insertRight) {
+            }
+            else if (start.row <= row) {
                 row += end.row - start.row;
             }
         } else if (delta.action === "removeText") {
@@ -1973,7 +1975,6 @@ var Tokenizer = function(rules) {
             ruleRegExps.push(adjustedregex);
             if (!rule.onMatch)
                 rule.onMatch = null;
-            rule.__proto__ = null;
         }
         
         splitterRurles.forEach(function(rule) {
@@ -7084,15 +7085,21 @@ exports.loadScript = function(path, callback) {
         }
     };
 };
+exports.qualifyURL = function(url) {
+    var a = document.createElement('a');
+    a.href = url;
+    return a.href;
+}
 
 });
 
-define('ace/virtual_renderer', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/lib/dom', 'ace/config', 'ace/layer/gutter', 'ace/layer/marker', 'ace/layer/text', 'ace/layer/cursor', 'ace/scrollbar', 'ace/renderloop', 'ace/layer/font_metrics', 'ace/lib/event_emitter'], function(require, exports, module) {
+define('ace/virtual_renderer', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/lib/dom', 'ace/config', 'ace/lib/useragent', 'ace/layer/gutter', 'ace/layer/marker', 'ace/layer/text', 'ace/layer/cursor', 'ace/scrollbar', 'ace/renderloop', 'ace/layer/font_metrics', 'ace/lib/event_emitter'], function(require, exports, module) {
 
 
 var oop = require("./lib/oop");
 var dom = require("./lib/dom");
 var config = require("./config");
+var useragent = require("./lib/useragent");
 var GutterLayer = require("./layer/gutter").Gutter;
 var MarkerLayer = require("./layer/marker").Marker;
 var TextLayer = require("./layer/text").Text;
@@ -7492,7 +7499,7 @@ var VirtualRenderer = function(container, theme) {
     var _self = this;
 
     this.container = container || dom.createElement("div");
-    this.$keepTextAreaAtCursor = true;
+    this.$keepTextAreaAtCursor = !useragent.isOldIE;
 
     dom.addCssClass(this.container, "ace_editor");
 
@@ -10708,7 +10715,7 @@ function GutterHandler(mouseHandler) {
         if (mouseHandler.$tooltipFollowsMouse) {
             moveTooltip(mouseEvent);
         } else {
-            var gutterElement = gutter.$cells[row].element;
+            var gutterElement = gutter.$cells[editor.session.documentToScreenRow(row, 0)].element;
             var rect = gutterElement.getBoundingClientRect();
             var style = tooltip.getElement().style;
             style.left = rect.right + "px";
@@ -11063,6 +11070,7 @@ function DefaultHandlers(mouseHandler) {
     this.selectAllEnd =
     this.selectByWordsEnd =
     this.selectByLinesEnd = function() {
+        this.$clickSelection = null;
         this.editor.unsetStyle("ace_selecting");
         if (this.editor.renderer.scroller.releaseCapture) {
             this.editor.renderer.scroller.releaseCapture();
@@ -11212,14 +11220,20 @@ var MouseHandler = function(editor) {
     new DefaultHandlers(this);
     new DefaultGutterHandler(this);
     new DragdropHandler(this);
-
+    
+    var focusEditor = function(e) { editor.focus() };
+    
     var mouseTarget = editor.renderer.getMouseEventTarget();
     event.addListener(mouseTarget, "click", this.onMouseEvent.bind(this, "click"));
     event.addListener(mouseTarget, "mousemove", this.onMouseMove.bind(this, "mousemove"));
-    event.addMultiMouseDownListener(mouseTarget, [300, 300, 250], this, "onMouseEvent");
+    event.addMultiMouseDownListener(mouseTarget, [400, 300, 250], this, "onMouseEvent");
     if (editor.renderer.scrollBarV) {
-        event.addMultiMouseDownListener(editor.renderer.scrollBarV.inner, [300, 300, 250], this, "onMouseEvent");
-        event.addMultiMouseDownListener(editor.renderer.scrollBarH.inner, [300, 300, 250], this, "onMouseEvent");
+        event.addMultiMouseDownListener(editor.renderer.scrollBarV.inner, [400, 300, 250], this, "onMouseEvent");
+        event.addMultiMouseDownListener(editor.renderer.scrollBarH.inner, [400, 300, 250], this, "onMouseEvent");
+        if (useragent.isIE) {
+            event.addListener(editor.renderer.scrollBarV.element, "mousedown", focusEditor);
+            event.addListener(editor.renderer.scrollBarH.element, "mousemove", focusEditor);
+        }
     }
     event.addMouseWheelListener(editor.container, this.onMouseWheel.bind(this, "mousewheel"));
 
@@ -11229,9 +11243,7 @@ var MouseHandler = function(editor) {
     event.addListener(gutterEl, "dblclick", this.onMouseEvent.bind(this, "gutterdblclick"));
     event.addListener(gutterEl, "mousemove", this.onMouseEvent.bind(this, "guttermousemove"));
 
-    event.addListener(mouseTarget, "mousedown", function(e) {
-        editor.focus();
-    });
+    event.addListener(mouseTarget, "mousedown", focusEditor);
 
     event.addListener(gutterEl, "mousedown", function(e) {
         editor.focus();
@@ -11276,6 +11288,10 @@ var MouseHandler = function(editor) {
 
         var self = this;
         var onMouseMove = function(e) {
+            if (!e) return;
+            if (useragent.isWebKit && !e.which && self.releaseMouse)
+                return self.releaseMouse();
+
             self.x = e.clientX;
             self.y = e.clientY;
             mouseMoveHandler && mouseMoveHandler(e);
@@ -11287,14 +11303,14 @@ var MouseHandler = function(editor) {
             clearInterval(timerId);
             onCaptureInterval();
             self[self.state + "End"] && self[self.state + "End"](e);
-            self.$clickSelection = null;
+            self.state = "";
             if (renderer.$keepTextAreaAtCursor == null) {
                 renderer.$keepTextAreaAtCursor = true;
                 renderer.$moveTextAreaToCursor();
             }
             self.isMousePressed = false;
             self.$onCaptureMouseMove = self.releaseMouse = null;
-            self.onMouseEvent("mouseup", e);
+            e && self.onMouseEvent("mouseup", e);
         };
 
         var onCaptureInterval = function() {
@@ -11351,7 +11367,7 @@ var FontMetrics = exports.FontMetrics = function(parentEl, interval) {
     
     if (!CHAR_COUNT)
         this.$testFractionalRect();
-    this.$measureNode.textContent = lang.stringRepeat("X", CHAR_COUNT);
+    this.$measureNode.innerHTML = lang.stringRepeat("X", CHAR_COUNT);
     
     this.$characterSize = {width: 0, height: 0};
     this.checkForSizeChanges();
@@ -11418,18 +11434,25 @@ var FontMetrics = exports.FontMetrics = function(parentEl, interval) {
     };
 
     this.$measureSizes = function() {
-        var rect = this.$measureNode.getBoundingClientRect();
-        var size = {
-            height: rect.height,
-            width: rect.width / CHAR_COUNT
-        };
+        if (CHAR_COUNT === 1) {
+            var rect = this.$measureNode.getBoundingClientRect();
+            var size = {
+                height: rect.height,
+                width: rect.width
+            };
+        } else {
+            var size = {
+                height: this.$measureNode.clientHeight,
+                width: this.$measureNode.clientWidth / CHAR_COUNT
+            };
+        }
         if (size.width === 0 || size.height === 0)
             return null;
         return size;
     };
 
     this.$measureCharWidth = function(ch) {
-        this.$main.textContent = lang.stringRepeat(ch, CHAR_COUNT);
+        this.$main.innerHTML = lang.stringRepeat(ch, CHAR_COUNT);
         var rect = this.$main.getBoundingClientRect();
         return rect.width / CHAR_COUNT;
     };
@@ -11460,6 +11483,7 @@ var useragent = require("../lib/useragent");
 var dom = require("../lib/dom");
 var lang = require("../lib/lang");
 var BROKEN_SETDATA = useragent.isChrome < 18;
+var USE_IE_MIME_TYPE =  useragent.isIE;
 
 var TextInput = function(parentNode, host) {
     var text = dom.createElement("textarea");
@@ -11478,7 +11502,6 @@ var TextInput = function(parentNode, host) {
 
     var PLACEHOLDER = "\x01\x01";
 
-    var cut = false;
     var copied = false;
     var pasted = false;
     var inComposition = false;
@@ -11598,9 +11621,7 @@ var TextInput = function(parentNode, host) {
     }
 
     var onSelect = function(e) {
-        if (cut) {
-            cut = false;
-        } else if (copied) {
+        if (copied) {
             copied = false;
         } else if (isAllSelected(text)) {
             host.selectAll();
@@ -11653,53 +11674,28 @@ var TextInput = function(parentNode, host) {
         sendText(data);
         resetValue();
     };
-
-    var onCut = function(e) {
-        var data = host.getCopyText();
-        if (!data) {
-            event.preventDefault(e);
-            return;
-        }
-
+    
+    var handleClipboardData = function(e, data) {
         var clipboardData = e.clipboardData || window.clipboardData;
-
-        if (clipboardData && !BROKEN_SETDATA) {
-            var supported = clipboardData.setData("Text", data);
-            if (supported) {
-                host.onCut();
-                event.preventDefault(e);
-            }
-        }
-
-        if (!supported) {
-            cut = true;
-            text.value = data;
-            text.select();
-            setTimeout(function(){
-                cut = false;
-                resetValue();
-                resetSelection();
-                host.onCut();
-            });
-        }
-    };
-
-    var onCopy = function(e) {
-        var data = host.getCopyText();
-        if (!data) {
-            event.preventDefault(e);
+        if (!clipboardData || BROKEN_SETDATA)
             return;
+        var mime = USE_IE_MIME_TYPE ? "Text" : "text/plain";
+        if (data) {
+            return clipboardData.setData(mime, data) !== false;
+        } else {
+            return clipboardData.getData(mime);
         }
+    }
 
-        var clipboardData = e.clipboardData || window.clipboardData;
-        if (clipboardData && !BROKEN_SETDATA) {
-            var supported = clipboardData.setData("Text", data);
-            if (supported) {
-                host.onCopy();
-                event.preventDefault(e);
-            }
-        }
-        if (!supported) {
+    var doCopy = function(e, isCut) {
+        var data = host.getCopyText();
+        if (!data)
+            return event.preventDefault(e);
+
+        if (handleClipboardData(e, data)) {
+            isCut ? host.onCut() : host.onCopy();
+            event.preventDefault(e);
+        } else {
             copied = true;
             text.value = data;
             text.select();
@@ -11707,16 +11703,22 @@ var TextInput = function(parentNode, host) {
                 copied = false;
                 resetValue();
                 resetSelection();
-                host.onCopy();
+                isCut ? host.onCut() : host.onCopy();
             });
         }
     };
-
+    
+    var onCut = function(e) {
+        doCopy(e, true);
+    }
+    
+    var onCopy = function(e) {
+        doCopy(e, false);
+    }
+    
     var onPaste = function(e) {
-        var clipboardData = e.clipboardData || window.clipboardData;
-
-        if (clipboardData) {
-            var data = clipboardData.getData("Text");
+        var data = handleClipboardData(e);
+        if (typeof data == "string") {
             if (data)
                 host.onPaste(data);
             if (useragent.isIE)
@@ -11741,7 +11743,7 @@ var TextInput = function(parentNode, host) {
     if (!('oncut' in text) || !('oncopy' in text) || !('onpaste' in text)){
         event.addListener(parentNode, "keydown", function(e) {
             if ((useragent.isMac && !e.metaKey) || !e.ctrlKey)
-            return;
+                return;
 
             switch (e.keyCode) {
                 case 67:
@@ -14648,11 +14650,12 @@ exports.isMac = (os == "mac");
 exports.isLinux = (os == "linux");
 exports.isIE = 
     (navigator.appName == "Microsoft Internet Explorer" || navigator.appName.indexOf("MSAppHost") >= 0)
-    && parseFloat(navigator.userAgent.match(/(?:Trident\/[0-9]+[\.0-9]+;.*rv:|MSIE )([0-9]+[\.0-9]+)/)[1]);
+    ? parseFloat((ua.match(/(?:MSIE |Trident\/[0-9]+[\.0-9]+;.*rv:)([0-9]+[\.0-9]+)/)||[])[1])
+    : parseFloat((ua.match(/(?:Trident\/[0-9]+[\.0-9]+;.*rv:)([0-9]+[\.0-9]+)/)||[])[1]); // for ie
     
 exports.isOldIE = exports.isIE && exports.isIE < 9;
 exports.isGecko = exports.isMozilla = window.controllers && window.navigator.product === "Gecko";
-exports.isOldGecko = exports.isGecko && parseInt((navigator.userAgent.match(/rv\:(\d+)/)||[])[1], 10) < 4;
+exports.isOldGecko = exports.isGecko && parseInt((ua.match(/rv\:(\d+)/)||[])[1], 10) < 4;
 exports.isOpera = window.opera && Object.prototype.toString.call(window.opera) == "[object Opera]";
 exports.isWebKit = parseFloat(ua.split("WebKit/")[1]) || undefined;
 
@@ -14758,10 +14761,11 @@ exports.implement = function(proto, mixin) {
 
 });
 
-define('ace/worker/worker_client', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/lib/event_emitter', 'ace/config'], function(require, exports, module) {
+define('ace/worker/worker_client', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/lib/net', 'ace/lib/event_emitter', 'ace/config'], function(require, exports, module) {
 
 
 var oop = require("../lib/oop");
+var net = require("../lib/net");
 var EventEmitter = require("../lib/event_emitter").EventEmitter;
 var config = require("../config");
 
@@ -14903,7 +14907,7 @@ var WorkerClient = function(topLevelNamespaces, mod, classname, workerUrl) {
     };
 
     this.$workerBlob = function(workerUrl) {
-        var script = "importScripts('" + workerUrl + "');";
+        var script = "importScripts('" + net.qualifyURL( workerUrl ) + "');";
         try {
             return new Blob([script], {"type": "application/javascript"});
         } catch (e) { // Backwards-compatibility
@@ -15041,8 +15045,8 @@ var Keys = (function() {
            73: 'i',  74: 'j',  75: 'k',  76: 'l',  77: 'm',  78: 'n', 79:  'o',
            80: 'p',  81: 'q',  82: 'r',  83: 's',  84: 't',  85: 'u', 86:  'v',
            87: 'w',  88: 'x',  89: 'y',  90: 'z', 107: '+', 109: '-', 110: '.',
-          188: ',', 190: '.', 191: '/', 192: '`', 219: '[', 220: '\\',
-          221: ']', 222: '\''
+          187: '=', 188: ',', 189: '-', 190: '.', 191: '/', 192: '`', 219: '[',
+          220: '\\',221: ']', 222: '\'',
         }
     };
     var name, i;
@@ -15061,7 +15065,7 @@ var Keys = (function() {
     ret.escape = ret.esc;
     ret.del = ret["delete"];
     ret[173] = '-';
-    
+
     (function() {
         var mods = ["cmd", "ctrl", "alt", "shift"];
         for (var i = Math.pow(2, mods.length); i--;) {
@@ -15374,7 +15378,7 @@ exports.addMouseWheelListener = function(el, callback) {
 
 exports.addMultiMouseDownListener = function(el, timeouts, eventHandler, callbackName) {
     var clicks = 0;
-    var startX, startY, timer;
+    var startX, startY, timer; 
     var eventNames = {
         2: "dblclick",
         3: "tripleclick",
@@ -15393,9 +15397,12 @@ exports.addMultiMouseDownListener = function(el, timeouts, eventHandler, callbac
         }
         if (useragent.isIE) {
             var isNewClick = Math.abs(e.clientX - startX) > 5 || Math.abs(e.clientY - startY) > 5;
-            if (isNewClick) {
+            if (!timer || isNewClick)
                 clicks = 1;
-            }
+            if (timer)
+                clearTimeout(timer)
+            timer = setTimeout(function() {timer = null}, timeouts[clicks - 1] || 600);
+
             if (clicks == 1) {
                 startX = e.clientX;
                 startY = e.clientY;

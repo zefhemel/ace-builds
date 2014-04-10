@@ -730,17 +730,17 @@ var HtmlHighlightRules = function() {
 
     this.addRules({
         attributes: [{
-            include : "space"
+            include : "tag_whitespace"
         }, {
-            token : "entity.other.attribute-name",
+            token : "entity.other.attribute-name.xml",
             regex : "[-_a-zA-Z0-9:]+"
         }, {
-            token : "keyword.operator.separator",
+            token : "keyword.operator.attribute-equals.xml",
             regex : "=",
             push : [{
-                include: "space"
+                include: "tag_whitespace"
             }, {
-                token : "string",
+                token : "string.unquoted.attribute-value.html",
                 regex : "[^<>='\"`\\s]+",
                 next : "pop"
             }, {
@@ -749,33 +749,21 @@ var HtmlHighlightRules = function() {
                 next : "pop"
             }]
         }, {
-            include : "string"
+            include : "attribute_value"
         }],
         tag: [{
             token : function(start, tag) {
                 var group = tagMap[tag];
-                return ["meta.tag.punctuation.begin",
-                    "meta.tag.name" + (group ? "." + group : "")];
+                return ["meta.tag.punctuation." + (start == "<" ? "" : "end-") + "tag-open.xml",
+                    "meta.tag" + (group ? "." + group : "") + ".tag-name.xml"];
             },
-            regex : "(<)([-_a-zA-Z0-9:]+)",
-            next: "start_tag_stuff"
-        }, {
-            token : function(start, tag) {
-                var group = tagMap[tag];
-                return ["meta.tag.punctuation.begin",
-                    "meta.tag.name" + (group ? "." + group : "")];
-            },
-            regex : "(</)([-_a-zA-Z0-9:]+)",
-            next: "end_tag_stuff"
+            regex : "(</?)([-_a-zA-Z0-9:]+)",
+            next: "tag_stuff"
         }],
-        start_tag_stuff: [
+        tag_stuff: [
             {include : "attributes"},
-            {token : "meta.tag.punctuation.end", regex : "/?>", next : "start"}
+            {token : "meta.tag.punctuation.tag-close.xml", regex : "/?>", next : "start"}
         ],
-        end_tag_stuff: [
-            {include : "space"},
-            {token : "meta.tag.punctuation.end", regex : ">", next : "start"}
-        ]
     });
 
     this.embedTagRules(CssHighlightRules, "css-", "style");
@@ -800,57 +788,72 @@ var TextHighlightRules = require("./text_highlight_rules").TextHighlightRules;
 var XmlHighlightRules = function(normalize) {
     this.$rules = {
         start : [
-            {token : "punctuation.string.begin", regex : "<\\!\\[CDATA\\[", next : "cdata"},
+            {token : "string.cdata.xml", regex : "<\\!\\[CDATA\\[", next : "cdata"},
             {
-                token : ["punctuation.instruction.begin", "keyword.instruction"],
-                regex : "(<\\?)(xml)(?=[\\s])", next : "xml_declaration"
+                token : ["punctuation.xml-decl.xml", "keyword.xml-decl.xml"],
+                regex : "(<\\?)(xml)(?=[\\s])", next : "xml_decl", caseInsensitive: true
             },
             {
-                token : ["punctuation.instruction.begin", "keyword.instruction"],
-                regex : "(<\\?)([-_a-zA-Z0-9]+)", next : "instruction"
+                token : ["punctuation.instruction.xml", "keyword.instruction.xml"],
+                regex : "(<\\?)([-_a-zA-Z0-9]+)", next : "processing_instruction",
             },
-            {token : "comment", regex : "<\\!--", next : "comment"},
+            {token : "comment.xml", regex : "<\\!--", next : "comment"},
             {
-                token : ["punctuation.doctype.begin", "meta.tag.doctype"],
-                regex : "(<\\!)(DOCTYPE)(?=[\\s])", next : "doctype"
+                token : ["xml-pe.doctype.xml", "xml-pe.doctype.xml"],
+                regex : "(<\\!)(DOCTYPE)(?=[\\s])", next : "doctype", caseInsensitive: true
             },
             {include : "tag"},
-            {include : "reference"}
+            {token : "text.end-tag-open.xml", regex: "</"},
+            {token : "text.tag-open.xml", regex: "<"},
+            {include : "reference"},
+            {defaultToken : "text.xml"}
         ],
 
-        xml_declaration : [
-            {include : "attributes"},
-            {include : "instruction"}
-        ],
+        xml_decl : [{
+            token : "entity.other.attribute-name.decl-attribute-name.xml",
+            regex : "(?:[-_a-zA-Z0-9]+:)?[-_a-zA-Z0-9]+"
+        }, {
+            token : "keyword.operator.decl-attribute-equals.xml",
+            regex : "="
+        }, {
+            include: "whitespace"
+        }, {
+            include: "string"
+        }, {
+            token : "punctuation.xml-decl.xml",
+            regex : "\\?>",
+            next : "start"
+        }],
 
-        instruction : [
-            {token : "punctuation.instruction.end", regex : "\\?>", next : "start"}
+        processing_instruction : [
+            {token : "punctuation.instruction.xml", regex : "\\?>", next : "start"},
+            {defaultToken : "instruction.xml"}
         ],
 
         doctype : [
-            {include : "space"},
+            {include : "whitespace"},
             {include : "string"},
-            {token : "punctuation.doctype.end", regex : ">", next : "start"},
-            {token : "xml-pe", regex : "[-_a-zA-Z0-9:]+"},
-            {token : "punctuation.begin", regex : "\\[", push : "declarations"}
+            {token : "xml-pe.doctype.xml", regex : ">", next : "start"},
+            {token : "xml-pe.xml", regex : "[-_a-zA-Z0-9:]+"},
+            {token : "punctuation.int-subset", regex : "\\[", push : "int_subset"}
         ],
 
-        declarations : [{
-            token : "text",
+        int_subset : [{
+            token : "text.xml",
             regex : "\\s+"
         }, {
-            token: "punctuation.end",
+            token: "punctuation.int-subset.xml",
             regex: "]",
             next: "pop"
         }, {
-            token : ["punctuation.begin", "keyword"],
+            token : ["punctuation.markup-decl.xml", "keyword.markup-decl.xml"],
             regex : "(<\\!)([-_a-zA-Z0-9]+)",
             push : [{
                 token : "text",
                 regex : "\\s+"
             },
             {
-                token : "punctuation.end",
+                token : "punctuation.markup-decl.xml",
                 regex : ">",
                 next : "pop"
             },
@@ -858,75 +861,85 @@ var XmlHighlightRules = function(normalize) {
         }],
 
         cdata : [
-            {token : "string.end", regex : "\\]\\]>", next : "start"},
-            {token : "text", regex : "\\s+"},
-            {token : "text", regex : "(?:[^\\]]|\\](?!\\]>))+"}
+            {token : "string.cdata.xml", regex : "\\]\\]>", next : "start"},
+            {token : "text.xml", regex : "\\s+"},
+            {token : "text.xml", regex : "(?:[^\\]]|\\](?!\\]>))+"}
         ],
 
         comment : [
-            {token : "comment", regex : "-->", next : "start"},
-            {defaultToken : "comment"}
-        ],
-
-        tag : [{
-            token : ["meta.tag.punctuation.begin", "meta.tag.name"],
-            regex : "(<)((?:[-_a-zA-Z0-9]+:)?[-_a-zA-Z0-9]+)",
-            next: [
-                {include : "attributes"},
-                {token : "meta.tag.punctuation.end", regex : "/?>", next : "start"}
-            ]
-        }, {
-            token : ["meta.tag.punctuation.begin", "meta.tag.name"],
-            regex : "(</)((?:[-_a-zA-Z0-9]+:)?[-_a-zA-Z0-9]+)",
-            next: [
-                {include : "space"},
-                {token : "meta.tag.punctuation.end", regex : ">", next : "start"}
-            ]
-        }],
-
-        space : [
-            {token : "text", regex : "\\s+"}
+            {token : "comment.xml", regex : "-->", next : "start"},
+            {defaultToken : "comment.xml"}
         ],
 
         reference : [{
-            token : "constant.language.escape",
+            token : "constant.language.escape.reference.xml",
             regex : "(?:&#[0-9]+;)|(?:&#x[0-9a-fA-F]+;)|(?:&[a-zA-Z0-9_:\\.-]+;)"
-        }, {
-            token : "text", regex : "&"
         }],
 
+        attr_reference : [{
+            token : "constant.language.escape.reference.attribute-value.xml",
+            regex : "(?:&#[0-9]+;)|(?:&#x[0-9a-fA-F]+;)|(?:&[a-zA-Z0-9_:\\.-]+;)"
+        }],
+
+        tag : [{
+            token : ["meta.tag.punctuation.tag-open.xml", "meta.tag.punctuation.end-tag-open.xml", "meta.tag.tag-name.xml"],
+            regex : "(?:(<)|(</))((?:[-_a-zA-Z0-9]+:)?[-_a-zA-Z0-9]+)",
+            next: [
+                {include : "attributes"},
+                {token : "meta.tag.punctuation.tag-close.xml", regex : "/?>", next : "start"}
+            ]
+        }],
+
+        tag_whitespace : [
+            {token : "text.tag-whitespace.xml", regex : "\\s+"}
+        ],
+        whitespace : [
+            {token : "text.whitespace.xml", regex : "\\s+"}
+        ],
         string: [{
-            token : "string",
+            token : "string.xml",
             regex : "'",
-            push : "qstring_inner"
+            push : [
+                {token : "string.xml", regex: "'", next: "pop"},
+                {defaultToken : "string.xml"}
+            ]
         }, {
-            token : "string",
+            token : "string.xml",
             regex : '"',
-            push : "qqstring_inner"
+            push : [
+                {token : "string.xml", regex: '"', next: "pop"},
+                {defaultToken : "string.xml"}
+            ]
         }],
-
-        qstring_inner: [
-            {token : "string", regex: "'", next: "pop"},
-            {include : "reference"},
-            {defaultToken : "string"}
-        ],
-
-        qqstring_inner: [
-            {token : "string", regex: '"', next: "pop"},
-            {include : "reference"},
-            {defaultToken : "string"}
-        ],
 
         attributes: [{
-            token : "entity.other.attribute-name",
+            token : "entity.other.attribute-name.xml",
             regex : "(?:[-_a-zA-Z0-9]+:)?[-_a-zA-Z0-9]+"
         }, {
-            token : "keyword.operator.separator",
+            token : "keyword.operator.attribute-equals.xml",
             regex : "="
         }, {
-            include : "space"
+            include: "tag_whitespace"
         }, {
-            include : "string"
+            include: "attribute_value"
+        }],
+
+        attribute_value: [{
+            token : "string.attribute-value.xml",
+            regex : "'",
+            push : [
+                {token : "string.attribute-value.xml", regex: "'", next: "pop"},
+                {include : "attr_reference"},
+                {defaultToken : "string.attribute-value.xml"}
+            ]
+        }, {
+            token : "string.attribute-value.xml",
+            regex : '"',
+            push : [
+                {token : "string.attribute-value.xml", regex: '"', next: "pop"},
+                {include : "attr_reference"},
+                {defaultToken : "string.attribute-value.xml"}
+            ]
         }]
     };
 
@@ -939,18 +952,17 @@ var XmlHighlightRules = function(normalize) {
 
     this.embedTagRules = function(HighlightRules, prefix, tag){
         this.$rules.tag.unshift({
-            token : ["meta.tag.punctuation.begin", "meta.tag.name." + tag],
-            regex : "(<)(" + tag + ")",
+            token : ["meta.tag.punctuation.tag-open.xml", "meta.tag." + tag + ".tag-name.xml"],
+            regex : "(<)(" + tag + "(?=\\s|>|$))",
             next: [
-                {include : "space"},
                 {include : "attributes"},
-                {token : "meta.tag.punctuation.end", regex : "/?>", next : prefix + "start"}
+                {token : "meta.tag.punctuation.tag-close.xml", regex : "/?>", next : prefix + "start"}
             ]
         });
 
         this.$rules[tag + "-end"] = [
-            {include : "space"},
-            {token : "meta.tag.punctuation.end", regex : ">",  next: "start",
+            {include : "attributes"},
+            {token : "meta.tag.punctuation.tag-close.xml", regex : "/?>",  next: "start",
                 onMatch : function(value, currentState, stack) {
                     stack.splice(0);
                     return this.token;
@@ -958,14 +970,14 @@ var XmlHighlightRules = function(normalize) {
         ]
 
         this.embedRules(HighlightRules, prefix, [{
-            token: ["meta.tag.punctuation.begin", "meta.tag.name." + tag],
-            regex : "(</)(" + tag + ")",
+            token: ["meta.tag.punctuation.end-tag-open.xml", "meta.tag." + tag + ".tag-name.xml"],
+            regex : "(</)(" + tag + "(?=\\s|>|$))",
             next: tag + "-end"
         }, {
-            token: "string.begin",
+            token: "string.cdata.xml",
             regex : "<\\!\\[CDATA\\["
         }, {
-            token: "string.end",
+            token: "string.cdata.xml",
             regex : "\\]\\]>"
         }]);
     };
@@ -1047,113 +1059,112 @@ exports.tag = function(states, name, nextState, tagMap) {
 
 });
 
-define('ace/mode/behaviour/html', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/behaviour/xml', 'ace/mode/behaviour/cstyle', 'ace/token_iterator'], function(require, exports, module) {
-
-
-var oop = require("../../lib/oop");
-var XmlBehaviour = require("../behaviour/xml").XmlBehaviour;
-var CstyleBehaviour = require("./cstyle").CstyleBehaviour;
-var TokenIterator = require("../../token_iterator").TokenIterator;
-var voidElements = ['area', 'base', 'br', 'col', 'command', 'embed', 'hr', 'img', 'input', 'keygen', 'link', 'meta', 'param', 'source', 'track', 'wbr'];
-
-function hasType(token, type) {
-    var tokenTypes = token.type.split('.');
-    return type.split('.').every(function(type){
-        return (tokenTypes.indexOf(type) !== -1);
-    });
-    return hasType;
-}
-
-var HtmlBehaviour = function () {
-
-    this.inherit(XmlBehaviour); // Get xml behaviour
-    
-    this.add("autoclosing", "insertion", function (state, action, editor, session, text) {
-        if (text == '>') {
-            var position = editor.getCursorPosition();
-            var iterator = new TokenIterator(session, position.row, position.column);
-            var token = iterator.getCurrentToken();
-
-            if (token && hasType(token, 'string') && iterator.getCurrentTokenColumn() + token.value.length > position.column)
-                return;
-            var atCursor = false;
-            if (!token || !hasType(token, 'meta.tag') && !(hasType(token, 'text') && token.value.match('/'))){
-                do {
-                    token = iterator.stepBackward();
-                } while (token && (hasType(token, 'string') || hasType(token, 'keyword.operator') || hasType(token, 'entity.attribute-name') || hasType(token, 'text')));
-            } else {
-                atCursor = true;
-            }
-            if (!token || !hasType(token, 'meta.tag.name') || iterator.stepBackward().value.match('/')) {
-                return;
-            }
-            var element = token.value;
-            if (atCursor){
-                var element = element.substring(0, position.column - token.start);
-            }
-            if (voidElements.indexOf(element) !== -1){
-                return;
-            }
-            return {
-               text: '>' + '</' + element + '>',
-               selection: [1, 1]
-            }
-        }
-    });
-}
-oop.inherits(HtmlBehaviour, XmlBehaviour);
-
-exports.HtmlBehaviour = HtmlBehaviour;
-});
-
-define('ace/mode/behaviour/xml', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/behaviour', 'ace/mode/behaviour/cstyle', 'ace/token_iterator'], function(require, exports, module) {
+define('ace/mode/behaviour/xml', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/behaviour', 'ace/token_iterator'], function(require, exports, module) {
 
 
 var oop = require("../../lib/oop");
 var Behaviour = require("../behaviour").Behaviour;
-var CstyleBehaviour = require("./cstyle").CstyleBehaviour;
 var TokenIterator = require("../../token_iterator").TokenIterator;
 
-function hasType(token, type) {
-    var tokenTypes = token.type.split('.');
-    return type.split('.').every(function(type){
-        return (tokenTypes.indexOf(type) !== -1);
-    });
-    return hasType;
+function is(token, type) {
+    return token.type.lastIndexOf(type + ".xml") > -1;
 }
 
 var XmlBehaviour = function () {
-    
-    this.inherit(CstyleBehaviour, ["string_dquotes"]); // Get string behaviour
-    
+
+    this.add("string_dquotes", "insertion", function (state, action, editor, session, text) {
+        if (text == '"' || text == "'") {
+            var quote = text;
+            var selected = session.doc.getTextRange(editor.getSelectionRange());
+            if (selected !== "" && selected !== "'" && selected != '"' && editor.getWrapBehavioursEnabled()) {
+                return {
+                    text: quote + selected + quote,
+                    selection: false
+                };
+            }
+
+            var cursor = editor.getCursorPosition();
+            var line = session.doc.getLine(cursor.row);
+            var rightChar = line.substring(cursor.column, cursor.column + 1);
+            var iterator = new TokenIterator(session, cursor.row, cursor.column);
+            var token = iterator.getCurrentToken();
+
+            if (rightChar == quote && (is(token, "attribute-value") || is(token, "string"))) {
+                return {
+                    text: "",
+                    selection: [1, 1]
+                };
+            }
+
+            if (!token)
+                token = iterator.stepBackward();
+
+            if (!token)
+                return;
+
+            while (is(token, "tag-whitespace") || is(token, "whitespace")) {
+                token = iterator.stepBackward();
+            }
+            var rightSpace = !rightChar || rightChar.match(/\s/);
+            if (is(token, "attribute-equals") && (rightSpace || rightChar == '>') || (is(token, "decl-attribute-equals") && (rightSpace || rightChar == '?'))) {
+                return {
+                    text: quote + quote,
+                    selection: [1, 1]
+                };
+            }
+        }
+    });
+
+    this.add("string_dquotes", "deletion", function(state, action, editor, session, range) {
+        var selected = session.doc.getTextRange(range);
+        if (!range.isMultiLine() && (selected == '"' || selected == "'")) {
+            var line = session.doc.getLine(range.start.row);
+            var rightChar = line.substring(range.start.column + 1, range.start.column + 2);
+            if (rightChar == selected) {
+                range.end.column++;
+                return range;
+            }
+        }
+    });
+
     this.add("autoclosing", "insertion", function (state, action, editor, session, text) {
         if (text == '>') {
             var position = editor.getCursorPosition();
             var iterator = new TokenIterator(session, position.row, position.column);
-            var token = iterator.getCurrentToken();
+            var token = iterator.getCurrentToken() || iterator.stepBackward();
+            if (!token || !(is(token, "tag-name") || is(token, "tag-whitespace") || is(token, "attribute-name") || is(token, "attribute-equals") || is(token, "attribute-value")))
+                return;
+            if (is(token, "reference.attribute-value"))
+                return;
+            if (is(token, "attribute-value")) {
+                var firstChar = token.value.charAt(0);
+                if (firstChar == '"' || firstChar == "'") {
+                    var lastChar = token.value.charAt(token.value.length - 1);
+                    var tokenEnd = iterator.getCurrentTokenColumn() + token.value.length;
+                    if (tokenEnd > position.column || tokenEnd == position.column && firstChar != lastChar)
+                        return;
+                }
+            }
+            while (!is(token, "tag-name")) {
+                token = iterator.stepBackward();
+            }
 
-            if (token && hasType(token, 'string') && iterator.getCurrentTokenColumn() + token.value.length > position.column)
+            var tokenRow = iterator.getCurrentTokenRow();
+            var tokenColumn = iterator.getCurrentTokenColumn();
+            if (is(iterator.stepBackward(), "end-tag-open"))
                 return;
-            var atCursor = false;
-            if (!token || !hasType(token, 'meta.tag') && !(hasType(token, 'text') && token.value.match('/'))){
-                do {
-                    token = iterator.stepBackward();
-                } while (token && (hasType(token, 'string') || hasType(token, 'keyword.operator') || hasType(token, 'entity.attribute-name') || hasType(token, 'text')));
-            } else {
-                atCursor = true;
-            }
-            if (!token || !hasType(token, 'meta.tag.name') || iterator.stepBackward().value.match('/')) {
-                return;
-            }
-            var tag = token.value;
-            if (atCursor){
-                var tag = tag.substring(0, position.column - token.start);
-            }
+
+            var element = token.value;
+            if (tokenRow == position.row)
+                element = element.substring(0, position.column - tokenColumn);
+
+            if (this.voidElements.hasOwnProperty(element.toLowerCase()))
+                 return;
 
             return {
-               text: '>' + '</' + tag + '>',
+               text: '>' + '</' + element + '>',
                selection: [1, 1]
-            }
+            };
         }
     });
 
@@ -1169,15 +1180,35 @@ var XmlBehaviour = function () {
                 return {
                     text: '\n' + indent + '\n' + next_indent,
                     selection: [1, indent.length, 1, indent.length]
-                }
+                };
             }
         }
     });
     
-}
+};
+
 oop.inherits(XmlBehaviour, Behaviour);
 
 exports.XmlBehaviour = XmlBehaviour;
+});
+
+define('ace/mode/folding/html', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/folding/mixed', 'ace/mode/folding/xml', 'ace/mode/folding/cstyle'], function(require, exports, module) {
+
+
+var oop = require("../../lib/oop");
+var MixedFoldMode = require("./mixed").FoldMode;
+var XmlFoldMode = require("./xml").FoldMode;
+var CStyleFoldMode = require("./cstyle").FoldMode;
+
+var FoldMode = exports.FoldMode = function(voidElements, optionalTags) {
+    MixedFoldMode.call(this, new XmlFoldMode(voidElements, optionalTags), {
+        "js-": new CStyleFoldMode(),
+        "css-": new CStyleFoldMode()
+    });
+};
+
+oop.inherits(FoldMode, MixedFoldMode);
+
 });
 
 define('ace/mode/matching_brace_outdent', ['require', 'exports', 'module' , 'ace/range'], function(require, exports, module) {
@@ -1218,97 +1249,6 @@ var MatchingBraceOutdent = function() {};
 }).call(MatchingBraceOutdent.prototype);
 
 exports.MatchingBraceOutdent = MatchingBraceOutdent;
-});
-
-define('ace/mode/folding/html', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/folding/mixed', 'ace/mode/folding/xml', 'ace/mode/folding/cstyle'], function(require, exports, module) {
-
-
-var oop = require("../../lib/oop");
-var MixedFoldMode = require("./mixed").FoldMode;
-var XmlFoldMode = require("./xml").FoldMode;
-var CStyleFoldMode = require("./cstyle").FoldMode;
-
-var FoldMode = exports.FoldMode = function() {
-    MixedFoldMode.call(this, new XmlFoldMode({
-        "area": 1,
-        "base": 1,
-        "br": 1,
-        "col": 1,
-        "command": 1,
-        "embed": 1,
-        "hr": 1,
-        "img": 1,
-        "input": 1,
-        "keygen": 1,
-        "link": 1,
-        "meta": 1,
-        "param": 1,
-        "source": 1,
-        "track": 1,
-        "wbr": 1,
-        "li": 1,
-        "dt": 1,
-        "dd": 1,
-        "p": 1,
-        "rt": 1,
-        "rp": 1,
-        "optgroup": 1,
-        "option": 1,
-        "colgroup": 1,
-        "td": 1,
-        "th": 1
-    }), {
-        "js-": new CStyleFoldMode(),
-        "css-": new CStyleFoldMode()
-    });
-};
-
-oop.inherits(FoldMode, MixedFoldMode);
-
-});
-
-define('ace/mode/doc_comment_highlight_rules', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/text_highlight_rules'], function(require, exports, module) {
-
-
-var oop = require("../lib/oop");
-var TextHighlightRules = require("./text_highlight_rules").TextHighlightRules;
-
-var DocCommentHighlightRules = function() {
-
-    this.$rules = {
-        "start" : [ {
-            token : "comment.doc.tag",
-            regex : "@[\\w\\d_]+" // TODO: fix email addresses
-        }, {
-            token : "comment.doc.tag",
-            regex : "\\bTODO\\b"
-        }, {
-            defaultToken : "comment.doc"
-        }]
-    };
-};
-
-oop.inherits(DocCommentHighlightRules, TextHighlightRules);
-
-DocCommentHighlightRules.getStartRule = function(start) {
-    return {
-        token : "comment.doc", // doc comment
-        regex : "\\/\\*(?=\\*)",
-        next  : start
-    };
-};
-
-DocCommentHighlightRules.getEndRule = function (start) {
-    return {
-        token : "comment.doc", // closing comment
-        regex : "\\*\\/",
-        next  : start
-    };
-};
-
-
-exports.DocCommentHighlightRules = DocCommentHighlightRules;
-
 });
 
 define('ace/mode/folding/mixed', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/folding/fold_mode'], function(require, exports, module) {
@@ -1359,6 +1299,286 @@ oop.inherits(FoldMode, BaseFoldMode);
             mode = this.defaultMode;
         
         return mode.getFoldWidgetRange(session, foldStyle, row);
+    };
+
+}).call(FoldMode.prototype);
+
+});
+
+define('ace/mode/doc_comment_highlight_rules', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/text_highlight_rules'], function(require, exports, module) {
+
+
+var oop = require("../lib/oop");
+var TextHighlightRules = require("./text_highlight_rules").TextHighlightRules;
+
+var DocCommentHighlightRules = function() {
+
+    this.$rules = {
+        "start" : [ {
+            token : "comment.doc.tag",
+            regex : "@[\\w\\d_]+" // TODO: fix email addresses
+        }, {
+            token : "comment.doc.tag",
+            regex : "\\bTODO\\b"
+        }, {
+            defaultToken : "comment.doc"
+        }]
+    };
+};
+
+oop.inherits(DocCommentHighlightRules, TextHighlightRules);
+
+DocCommentHighlightRules.getStartRule = function(start) {
+    return {
+        token : "comment.doc", // doc comment
+        regex : "\\/\\*(?=\\*)",
+        next  : start
+    };
+};
+
+DocCommentHighlightRules.getEndRule = function (start) {
+    return {
+        token : "comment.doc", // closing comment
+        regex : "\\*\\/",
+        next  : start
+    };
+};
+
+
+exports.DocCommentHighlightRules = DocCommentHighlightRules;
+
+});
+
+define('ace/mode/folding/xml', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/lib/lang', 'ace/range', 'ace/mode/folding/fold_mode', 'ace/token_iterator'], function(require, exports, module) {
+
+
+var oop = require("../../lib/oop");
+var lang = require("../../lib/lang");
+var Range = require("../../range").Range;
+var BaseFoldMode = require("./fold_mode").FoldMode;
+var TokenIterator = require("../../token_iterator").TokenIterator;
+
+var FoldMode = exports.FoldMode = function(voidElements, optionalEndTags) {
+    BaseFoldMode.call(this);
+    this.voidElements = oop.mixin(voidElements || {}, optionalEndTags || {});
+};
+oop.inherits(FoldMode, BaseFoldMode);
+
+var Tag = function() {
+    this.tagName = "";
+    this.closing = false;
+    this.selfClosing = false;
+    this.start = {row: 0, column: 0};
+    this.end = {row: 0, column: 0};
+};
+
+function is(token, type) {
+    return token.type.lastIndexOf(type + ".xml") > -1;
+}
+
+(function() {
+
+    this.getFoldWidget = function(session, foldStyle, row) {
+        var tag = this._getFirstTagInLine(session, row);
+
+        if (!tag)
+            return "";
+
+        if (tag.closing || (!tag.tagName && tag.selfClosing))
+            return foldStyle == "markbeginend" ? "end" : "";
+
+        if (!tag.tagName || tag.selfClosing || this.voidElements.hasOwnProperty(tag.tagName.toLowerCase()))
+            return "";
+
+        if (this._findEndTagInLine(session, row, tag.tagName, tag.end.column))
+            return "";
+
+        return "start";
+    };
+    this._getFirstTagInLine = function(session, row) {
+        var tokens = session.getTokens(row);
+        var tag = new Tag();
+
+        for (var i = 0; i < tokens.length; i++) {
+            var token = tokens[i];
+            if (is(token, "tag-open")) {
+                tag.end.column = tag.start.column + token.value.length;
+                tag.closing = is(token, "end-tag-open");
+                token = tokens[++i];
+                if (!token)
+                    return null;
+                tag.tagName = token.value;
+                tag.end.column += token.value.length;
+                for (i++; i < tokens.length; i++) {
+                    token = tokens[i];
+                    tag.end.column += token.value.length;
+                    if (is(token, "tag-close")) {
+                        tag.selfClosing = token.value == '/>';
+                        break;
+                    }
+                }
+                return tag;
+            } else if (is(token, "tag-close")) {
+                tag.selfClosing = token.value == '/>';
+                return tag;
+            }
+            tag.start.column += token.value.length;
+        }
+
+        return null;
+    };
+
+    this._findEndTagInLine = function(session, row, tagName, startColumn) {
+        var tokens = session.getTokens(row);
+        var column = 0;
+        for (var i = 0; i < tokens.length; i++) {
+            var token = tokens[i];
+            column += token.value.length;
+            if (column < startColumn)
+                continue;
+            if (is(token, "end-tag-open")) {
+                token = tokens[i + 1];
+                if (token && token.value == tagName)
+                    return true;
+            }
+        }
+        return false;
+    };
+    this._readTagForward = function(iterator) {
+        var token = iterator.getCurrentToken();
+        if (!token)
+            return null;
+
+        var tag = new Tag();
+        do {
+            if (is(token, "tag-open")) {
+                tag.closing = is(token, "end-tag-open");
+                tag.start.row = iterator.getCurrentTokenRow();
+                tag.start.column = iterator.getCurrentTokenColumn();
+            } else if (is(token, "tag-name")) {
+                tag.tagName = token.value;
+            } else if (is(token, "tag-close")) {
+                tag.selfClosing = token.value == "/>";
+                tag.end.row = iterator.getCurrentTokenRow();
+                tag.end.column = iterator.getCurrentTokenColumn() + token.value.length;
+                iterator.stepForward();
+                return tag;
+            }
+        } while(token = iterator.stepForward());
+
+        return null;
+    };
+    
+    this._readTagBackward = function(iterator) {
+        var token = iterator.getCurrentToken();
+        if (!token)
+            return null;
+
+        var tag = new Tag();
+        do {
+            if (is(token, "tag-open")) {
+                tag.closing = is(token, "end-tag-open");
+                tag.start.row = iterator.getCurrentTokenRow();
+                tag.start.column = iterator.getCurrentTokenColumn();
+                iterator.stepBackward();
+                return tag;
+            } else if (is(token, "tag-name")) {
+                tag.tagName = token.value;
+            } else if (is(token, "tag-close")) {
+                tag.selfClosing = token.value == "/>";
+                tag.end.row = iterator.getCurrentTokenRow();
+                tag.end.column = iterator.getCurrentTokenColumn() + token.value.length;
+            }
+        } while(token = iterator.stepBackward());
+
+        return null;
+    };
+    
+    this._pop = function(stack, tag) {
+        while (stack.length) {
+            
+            var top = stack[stack.length-1];
+            if (!tag || top.tagName == tag.tagName) {
+                return stack.pop();
+            }
+            else if (this.voidElements.hasOwnProperty(tag.tagName)) {
+                return;
+            }
+            else if (this.voidElements.hasOwnProperty(top.tagName)) {
+                stack.pop();
+                continue;
+            } else {
+                return null;
+            }
+        }
+    };
+    
+    this.getFoldWidgetRange = function(session, foldStyle, row) {
+        var firstTag = this._getFirstTagInLine(session, row);
+        
+        if (!firstTag)
+            return null;
+        
+        var isBackward = firstTag.closing || firstTag.selfClosing;
+        var stack = [];
+        var tag;
+        
+        if (!isBackward) {
+            var iterator = new TokenIterator(session, row, firstTag.start.column);
+            var start = {
+                row: row,
+                column: firstTag.start.column + firstTag.tagName.length + 2
+            };
+            while (tag = this._readTagForward(iterator)) {
+                if (tag.selfClosing) {
+                    if (!stack.length) {
+                        tag.start.column += tag.tagName.length + 2;
+                        tag.end.column -= 2;
+                        return Range.fromPoints(tag.start, tag.end);
+                    } else
+                        continue;
+                }
+                
+                if (tag.closing) {
+                    this._pop(stack, tag);
+                    if (stack.length == 0)
+                        return Range.fromPoints(start, tag.start);
+                }
+                else {
+                    stack.push(tag);
+                }
+            }
+        }
+        else {
+            var iterator = new TokenIterator(session, row, firstTag.end.column);
+            var end = {
+                row: row,
+                column: firstTag.start.column
+            };
+            
+            while (tag = this._readTagBackward(iterator)) {
+                if (tag.selfClosing) {
+                    if (!stack.length) {
+                        tag.start.column += tag.tagName.length + 2;
+                        tag.end.column -= 2;
+                        return Range.fromPoints(tag.start, tag.end);
+                    } else
+                        continue;
+                }
+                
+                if (!tag.closing) {
+                    this._pop(stack, tag);
+                    if (stack.length == 0) {
+                        tag.start.column += tag.tagName.length + 2;
+                        return Range.fromPoints(tag.start, end);
+                    }
+                }
+                else {
+                    stack.push(tag);
+                }
+            }
+        }
+        
     };
 
 }).call(FoldMode.prototype);
@@ -1674,315 +1894,6 @@ oop.inherits(JavaScriptHighlightRules, TextHighlightRules);
 exports.JavaScriptHighlightRules = JavaScriptHighlightRules;
 });
 
-define('ace/mode/folding/xml', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/lib/lang', 'ace/range', 'ace/mode/folding/fold_mode', 'ace/token_iterator'], function(require, exports, module) {
-
-
-var oop = require("../../lib/oop");
-var lang = require("../../lib/lang");
-var Range = require("../../range").Range;
-var BaseFoldMode = require("./fold_mode").FoldMode;
-var TokenIterator = require("../../token_iterator").TokenIterator;
-
-var FoldMode = exports.FoldMode = function(voidElements) {
-    BaseFoldMode.call(this);
-    this.voidElements = voidElements || {};
-};
-oop.inherits(FoldMode, BaseFoldMode);
-
-(function() {
-
-    this.getFoldWidget = function(session, foldStyle, row) {
-        var tag = this._getFirstTagInLine(session, row);
-
-        if (tag.closing)
-            return foldStyle == "markbeginend" ? "end" : "";
-
-        if (!tag.tagName || this.voidElements[tag.tagName.toLowerCase()])
-            return "";
-
-        if (tag.selfClosing)
-            return "";
-
-        if (tag.value.indexOf("/" + tag.tagName) !== -1)
-            return "";
-
-        return "start";
-    };
-    
-    this._getFirstTagInLine = function(session, row) {
-        var tokens = session.getTokens(row);
-        var value = "";
-        for (var i = 0; i < tokens.length; i++) {
-            var token = tokens[i];
-            if (token.type.lastIndexOf("meta.tag", 0) === 0)
-                value += token.value;
-            else
-                value += lang.stringRepeat(" ", token.value.length);
-        }
-        
-        return this._parseTag(value);
-    };
-
-    this.tagRe = /^(\s*)(<?(\/?)([-_a-zA-Z0-9:!]*)\s*(\/?)>?)/;
-    this._parseTag = function(tag) {
-        
-        var match = tag.match(this.tagRe);
-        var column = 0;
-
-        return {
-            value: tag,
-            match: match ? match[2] : "",
-            closing: match ? !!match[3] : false,
-            selfClosing: match ? !!match[5] || match[2] == "/>" : false,
-            tagName: match ? match[4] : "",
-            column: match[1] ? column + match[1].length : column
-        };
-    };
-    this._readTagForward = function(iterator) {
-        var token = iterator.getCurrentToken();
-        if (!token)
-            return null;
-            
-        var value = "";
-        var start;
-        
-        do {
-            if (token.type.lastIndexOf("meta.tag", 0) === 0) {
-                if (!start) {
-                    var start = {
-                        row: iterator.getCurrentTokenRow(),
-                        column: iterator.getCurrentTokenColumn()
-                    };
-                }
-                value += token.value;
-                if (value.indexOf(">") !== -1) {
-                    var tag = this._parseTag(value);
-                    tag.start = start;
-                    tag.end = {
-                        row: iterator.getCurrentTokenRow(),
-                        column: iterator.getCurrentTokenColumn() + token.value.length
-                    };
-                    iterator.stepForward();
-                    return tag;
-                }
-            }
-        } while(token = iterator.stepForward());
-        
-        return null;
-    };
-    
-    this._readTagBackward = function(iterator) {
-        var token = iterator.getCurrentToken();
-        if (!token)
-            return null;
-            
-        var value = "";
-        var end;
-
-        do {
-            if (token.type.lastIndexOf("meta.tag", 0) === 0) {
-                if (!end) {
-                    end = {
-                        row: iterator.getCurrentTokenRow(),
-                        column: iterator.getCurrentTokenColumn() + token.value.length
-                    };
-                }
-                value = token.value + value;
-                if (value.indexOf("<") !== -1) {
-                    var tag = this._parseTag(value);
-                    tag.end = end;
-                    tag.start = {
-                        row: iterator.getCurrentTokenRow(),
-                        column: iterator.getCurrentTokenColumn()
-                    };
-                    iterator.stepBackward();
-                    return tag;
-                }
-            }
-        } while(token = iterator.stepBackward());
-        
-        return null;
-    };
-    
-    this._pop = function(stack, tag) {
-        while (stack.length) {
-            
-            var top = stack[stack.length-1];
-            if (!tag || top.tagName == tag.tagName) {
-                return stack.pop();
-            }
-            else if (this.voidElements[tag.tagName]) {
-                return;
-            }
-            else if (this.voidElements[top.tagName]) {
-                stack.pop();
-                continue;
-            } else {
-                return null;
-            }
-        }
-    };
-    
-    this.getFoldWidgetRange = function(session, foldStyle, row) {
-        var firstTag = this._getFirstTagInLine(session, row);
-        
-        if (!firstTag.match)
-            return null;
-        
-        var isBackward = firstTag.closing || firstTag.selfClosing;
-        var stack = [];
-        var tag;
-        
-        if (!isBackward) {
-            var iterator = new TokenIterator(session, row, firstTag.column);
-            var start = {
-                row: row,
-                column: firstTag.column + firstTag.tagName.length + 2
-            };
-            while (tag = this._readTagForward(iterator)) {
-                if (tag.selfClosing) {
-                    if (!stack.length) {
-                        tag.start.column += tag.tagName.length + 2;
-                        tag.end.column -= 2;
-                        return Range.fromPoints(tag.start, tag.end);
-                    } else
-                        continue;
-                }
-                
-                if (tag.closing) {
-                    this._pop(stack, tag);
-                    if (stack.length == 0)
-                        return Range.fromPoints(start, tag.start);
-                }
-                else {
-                    stack.push(tag)
-                }
-            }
-        }
-        else {
-            var iterator = new TokenIterator(session, row, firstTag.column + firstTag.match.length);
-            var end = {
-                row: row,
-                column: firstTag.column
-            };
-            
-            while (tag = this._readTagBackward(iterator)) {
-                if (tag.selfClosing) {
-                    if (!stack.length) {
-                        tag.start.column += tag.tagName.length + 2;
-                        tag.end.column -= 2;
-                        return Range.fromPoints(tag.start, tag.end);
-                    } else
-                        continue;
-                }
-                
-                if (!tag.closing) {
-                    this._pop(stack, tag);
-                    if (stack.length == 0) {
-                        tag.start.column += tag.tagName.length + 2;
-                        return Range.fromPoints(tag.start, end);
-                    }
-                }
-                else {
-                    stack.push(tag)
-                }
-            }
-        }
-        
-    };
-
-}).call(FoldMode.prototype);
-
-});
-
-define('ace/mode/javascript', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/text', 'ace/tokenizer', 'ace/mode/javascript_highlight_rules', 'ace/mode/matching_brace_outdent', 'ace/range', 'ace/worker/worker_client', 'ace/mode/behaviour/cstyle', 'ace/mode/folding/cstyle'], function(require, exports, module) {
-
-
-var oop = require("../lib/oop");
-var TextMode = require("./text").Mode;
-var Tokenizer = require("../tokenizer").Tokenizer;
-var JavaScriptHighlightRules = require("./javascript_highlight_rules").JavaScriptHighlightRules;
-var MatchingBraceOutdent = require("./matching_brace_outdent").MatchingBraceOutdent;
-var Range = require("../range").Range;
-var WorkerClient = require("../worker/worker_client").WorkerClient;
-var CstyleBehaviour = require("./behaviour/cstyle").CstyleBehaviour;
-var CStyleFoldMode = require("./folding/cstyle").FoldMode;
-
-var Mode = function() {
-    this.HighlightRules = JavaScriptHighlightRules;
-    
-    this.$outdent = new MatchingBraceOutdent();
-    this.$behaviour = new CstyleBehaviour();
-    this.foldingRules = new CStyleFoldMode();
-};
-oop.inherits(Mode, TextMode);
-
-(function() {
-
-    this.lineCommentStart = "//";
-    this.blockComment = {start: "/*", end: "*/"};
-
-    this.getNextLineIndent = function(state, line, tab) {
-        var indent = this.$getIndent(line);
-
-        var tokenizedLine = this.getTokenizer().getLineTokens(line, state);
-        var tokens = tokenizedLine.tokens;
-        var endState = tokenizedLine.state;
-
-        if (tokens.length && tokens[tokens.length-1].type == "comment") {
-            return indent;
-        }
-
-        if (state == "start" || state == "no_regex") {
-            var match = line.match(/^.*(?:\bcase\b.*\:|[\{\(\[])\s*$/);
-            if (match) {
-                indent += tab;
-            }
-        } else if (state == "doc-start") {
-            if (endState == "start" || endState == "no_regex") {
-                return "";
-            }
-            var match = line.match(/^\s*(\/?)\*/);
-            if (match) {
-                if (match[1]) {
-                    indent += " ";
-                }
-                indent += "* ";
-            }
-        }
-
-        return indent;
-    };
-
-    this.checkOutdent = function(state, line, input) {
-        return this.$outdent.checkOutdent(line, input);
-    };
-
-    this.autoOutdent = function(state, doc, row) {
-        this.$outdent.autoOutdent(doc, row);
-    };
-
-    this.createWorker = function(session) {
-        var worker = new WorkerClient(["ace"], "ace/mode/javascript_worker", "JavaScriptWorker");
-        worker.attachToDocument(session.getDocument());
-
-        worker.on("jslint", function(results) {
-            session.setAnnotations(results.data);
-        });
-
-        worker.on("terminate", function() {
-            session.clearAnnotations();
-        });
-
-        return worker;
-    };
-
-    this.$id = "ace/mode/javascript";
-}).call(Mode.prototype);
-
-exports.Mode = Mode;
-});
-
 define('ace/mode/html_completions', ['require', 'exports', 'module' , 'ace/token_iterator'], function(require, exports, module) {
 
 
@@ -1998,6 +1909,12 @@ var commonAttributes = [
     "dropzone",
     "hidden",
     "id",
+    "inert",
+    "itemid",
+    "itemprop",
+    "itemref",
+    "itemscope",
+    "itemtype",
     "lang",
     "spellcheck",
     "style",
@@ -2181,24 +2098,19 @@ var attributeMap = {
     "dialog": ["open"]
 };
 
-var allElements = Object.keys(attributeMap);
+var elements = Object.keys(attributeMap);
 
-function hasType(token, type) {
-    var tokenTypes = token.type.split('.');
-    return type.split('.').every(function(type){
-        return (tokenTypes.indexOf(type) !== -1);
-    });
+function is(token, type) {
+    return token.type.lastIndexOf(type + ".xml") > -1;
 }
 
 function findTagName(session, pos) {
     var iterator = new TokenIterator(session, pos.row, pos.column);
     var token = iterator.getCurrentToken();
-    if (!token || !hasType(token, 'tag') && !(hasType(token, 'text') && token.value.match('/'))){
-        do {
-            token = iterator.stepBackward();
-        } while (token && (hasType(token, 'string') || hasType(token, 'operator') || hasType(token, 'attribute-name') || hasType(token, 'text')));
+    while (token && !is(token, "tag-name")){
+        token = iterator.stepBackward();
     }
-    if (token && hasType(token, 'tag-name') && !iterator.stepBackward().value.match('/'))
+    if (token)
         return token.value;
 }
 
@@ -2213,25 +2125,20 @@ var HtmlCompletions = function() {
 
         if (!token)
             return [];
-        if (hasType(token, "tag-name") || (token.value == '<' && hasType(token, "text")))
+        if (is(token, "tag-name") || is(token, "tag-open") || is(token, "end-tag-open"))
             return this.getTagCompletions(state, session, pos, prefix);
-        if (hasType(token, 'text') || hasType(token, 'attribute-name'))
+        if (is(token, "tag-whitespace") || is(token, "attribute-name"))
             return this.getAttributeCompetions(state, session, pos, prefix);
 
         return [];
     };
 
     this.getTagCompletions = function(state, session, pos, prefix) {
-        var elements = allElements;
-        if (prefix) {
-            elements = elements.filter(function(element){
-                return element.indexOf(prefix) === 0;
-            });
-        }
         return elements.map(function(element){
             return {
                 value: element,
-                meta: "tag"
+                meta: "tag",
+                score: Number.MAX_VALUE
             };
         });
     };
@@ -2244,16 +2151,12 @@ var HtmlCompletions = function() {
         if (tagName in attributeMap) {
             attributes = attributes.concat(attributeMap[tagName]);
         }
-        if (prefix) {
-            attributes = attributes.filter(function(attribute){
-                return attribute.indexOf(prefix) === 0;
-            });
-        }
         return attributes.map(function(attribute){
             return {
                 caption: attribute,
                 snippet: attribute + '="$0"',
-                meta: "attribute"
+                meta: "attribute",
+                score: Number.MAX_VALUE
             };
         });
     };
@@ -2263,62 +2166,79 @@ var HtmlCompletions = function() {
 exports.HtmlCompletions = HtmlCompletions;
 });
 
-define('ace/mode/html', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/text', 'ace/mode/javascript', 'ace/mode/css', 'ace/tokenizer', 'ace/mode/html_highlight_rules', 'ace/mode/behaviour/html', 'ace/mode/folding/html', 'ace/mode/html_completions', 'ace/worker/worker_client'], function(require, exports, module) {
+define('ace/mode/javascript', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/text', 'ace/tokenizer', 'ace/mode/javascript_highlight_rules', 'ace/mode/matching_brace_outdent', 'ace/range', 'ace/worker/worker_client', 'ace/mode/behaviour/cstyle', 'ace/mode/folding/cstyle'], function(require, exports, module) {
 
 
 var oop = require("../lib/oop");
 var TextMode = require("./text").Mode;
-var JavaScriptMode = require("./javascript").Mode;
-var CssMode = require("./css").Mode;
 var Tokenizer = require("../tokenizer").Tokenizer;
-var HtmlHighlightRules = require("./html_highlight_rules").HtmlHighlightRules;
-var HtmlBehaviour = require("./behaviour/html").HtmlBehaviour;
-var HtmlFoldMode = require("./folding/html").FoldMode;
-var HtmlCompletions = require("./html_completions").HtmlCompletions;
+var JavaScriptHighlightRules = require("./javascript_highlight_rules").JavaScriptHighlightRules;
+var MatchingBraceOutdent = require("./matching_brace_outdent").MatchingBraceOutdent;
+var Range = require("../range").Range;
 var WorkerClient = require("../worker/worker_client").WorkerClient;
+var CstyleBehaviour = require("./behaviour/cstyle").CstyleBehaviour;
+var CStyleFoldMode = require("./folding/cstyle").FoldMode;
 
-var Mode = function(options) {
-    this.fragmentContext = options && options.fragmentContext;
-    this.HighlightRules = HtmlHighlightRules;
-    this.$behaviour = new HtmlBehaviour();
-    this.$completer = new HtmlCompletions();
+var Mode = function() {
+    this.HighlightRules = JavaScriptHighlightRules;
     
-    this.createModeDelegates({
-        "js-": JavaScriptMode,
-        "css-": CssMode
-    });
-    
-    this.foldingRules = new HtmlFoldMode();
+    this.$outdent = new MatchingBraceOutdent();
+    this.$behaviour = new CstyleBehaviour();
+    this.foldingRules = new CStyleFoldMode();
 };
 oop.inherits(Mode, TextMode);
 
 (function() {
 
-    this.blockComment = {start: "<!--", end: "-->"};
+    this.lineCommentStart = "//";
+    this.blockComment = {start: "/*", end: "*/"};
 
     this.getNextLineIndent = function(state, line, tab) {
-        return this.$getIndent(line);
+        var indent = this.$getIndent(line);
+
+        var tokenizedLine = this.getTokenizer().getLineTokens(line, state);
+        var tokens = tokenizedLine.tokens;
+        var endState = tokenizedLine.state;
+
+        if (tokens.length && tokens[tokens.length-1].type == "comment") {
+            return indent;
+        }
+
+        if (state == "start" || state == "no_regex") {
+            var match = line.match(/^.*(?:\bcase\b.*\:|[\{\(\[])\s*$/);
+            if (match) {
+                indent += tab;
+            }
+        } else if (state == "doc-start") {
+            if (endState == "start" || endState == "no_regex") {
+                return "";
+            }
+            var match = line.match(/^\s*(\/?)\*/);
+            if (match) {
+                if (match[1]) {
+                    indent += " ";
+                }
+                indent += "* ";
+            }
+        }
+
+        return indent;
     };
 
     this.checkOutdent = function(state, line, input) {
-        return false;
+        return this.$outdent.checkOutdent(line, input);
     };
 
-    this.getCompletions = function(state, session, pos, prefix) {
-        return this.$completer.getCompletions(state, session, pos, prefix);
+    this.autoOutdent = function(state, doc, row) {
+        this.$outdent.autoOutdent(doc, row);
     };
 
     this.createWorker = function(session) {
-        if (this.constructor != Mode)
-            return;
-        var worker = new WorkerClient(["ace"], "ace/mode/html_worker", "Worker");
+        var worker = new WorkerClient(["ace"], "ace/mode/javascript_worker", "JavaScriptWorker");
         worker.attachToDocument(session.getDocument());
 
-        if (this.fragmentContext)
-            worker.call("setOptions", [{context: this.fragmentContext}]);
-
-        worker.on("error", function(e) {
-            session.setAnnotations(e.data);
+        worker.on("jslint", function(results) {
+            session.setAnnotations(results.data);
         });
 
         worker.on("terminate", function() {
@@ -2328,7 +2248,7 @@ oop.inherits(Mode, TextMode);
         return worker;
     };
 
-    this.$id = "ace/mode/html";
+    this.$id = "ace/mode/javascript";
 }).call(Mode.prototype);
 
 exports.Mode = Mode;
@@ -2403,6 +2323,99 @@ var HandlebarsHighlightRules = function() {
 oop.inherits(HandlebarsHighlightRules, HtmlHighlightRules);
 
 exports.HandlebarsHighlightRules = HandlebarsHighlightRules;
+});
+
+define('ace/mode/html', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/lib/lang', 'ace/mode/text', 'ace/mode/javascript', 'ace/mode/css', 'ace/tokenizer', 'ace/mode/html_highlight_rules', 'ace/mode/behaviour/xml', 'ace/mode/folding/html', 'ace/mode/html_completions', 'ace/worker/worker_client'], function(require, exports, module) {
+
+
+var oop = require("../lib/oop");
+var lang = require("../lib/lang");
+var TextMode = require("./text").Mode;
+var JavaScriptMode = require("./javascript").Mode;
+var CssMode = require("./css").Mode;
+var Tokenizer = require("../tokenizer").Tokenizer;
+var HtmlHighlightRules = require("./html_highlight_rules").HtmlHighlightRules;
+var XmlBehaviour = require("./behaviour/xml").XmlBehaviour;
+var HtmlFoldMode = require("./folding/html").FoldMode;
+var HtmlCompletions = require("./html_completions").HtmlCompletions;
+var WorkerClient = require("../worker/worker_client").WorkerClient;
+var voidElements = ["area", "base", "br", "col", "embed", "hr", "img", "input", "keygen", "link", "meta", "param", "source", "track", "wbr"];
+var optionalEndTags = ["li", "dt", "dd", "p", "rt", "rp", "optgroup", "option", "colgroup", "td", "th"];
+
+var Mode = function(options) {
+    this.fragmentContext = options && options.fragmentContext;
+    this.HighlightRules = HtmlHighlightRules;
+    this.$behaviour = new XmlBehaviour();
+    this.$completer = new HtmlCompletions();
+    
+    this.createModeDelegates({
+        "js-": JavaScriptMode,
+        "css-": CssMode
+    });
+    
+    this.foldingRules = new HtmlFoldMode(this.voidElements, lang.arrayToMap(optionalEndTags));
+};
+oop.inherits(Mode, TextMode);
+
+(function() {
+
+    this.blockComment = {start: "<!--", end: "-->"};
+
+    this.voidElements = lang.arrayToMap(voidElements);
+
+    this.getNextLineIndent = function(state, line, tab) {
+        return this.$getIndent(line);
+    };
+
+    this.checkOutdent = function(state, line, input) {
+        return false;
+    };
+
+    this.getCompletions = function(state, session, pos, prefix) {
+        return this.$completer.getCompletions(state, session, pos, prefix);
+    };
+
+    this.createWorker = function(session) {
+        if (this.constructor != Mode)
+            return;
+        var worker = new WorkerClient(["ace"], "ace/mode/html_worker", "Worker");
+        worker.attachToDocument(session.getDocument());
+
+        if (this.fragmentContext)
+            worker.call("setOptions", [{context: this.fragmentContext}]);
+
+        worker.on("error", function(e) {
+            session.setAnnotations(e.data);
+        });
+
+        worker.on("terminate", function() {
+            session.clearAnnotations();
+        });
+
+        return worker;
+    };
+
+    this.$id = "ace/mode/html";
+}).call(Mode.prototype);
+
+exports.Mode = Mode;
+});
+
+define('ace/mode/behaviour/html', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/behaviour/xml'], function(require, exports, module) {
+
+
+var oop = require("../../lib/oop");
+var XmlBehaviour = require("../behaviour/xml").XmlBehaviour;
+
+var HtmlBehaviour = function () {
+
+    XmlBehaviour.call(this);
+
+};
+
+oop.inherits(HtmlBehaviour, XmlBehaviour);
+
+exports.HtmlBehaviour = HtmlBehaviour;
 });
 
 define('ace/mode/behaviour/css', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/behaviour', 'ace/mode/behaviour/cstyle', 'ace/token_iterator'], function(require, exports, module) {
