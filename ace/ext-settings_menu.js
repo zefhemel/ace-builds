@@ -633,8 +633,4 @@ module.exports.overlayPage = function overlayPage(editor, contentElement, top, r
     editor.blur();
 };
 
-});;
-                (function() {
-                    window.require(["ace/ext/settings_menu"], function() {});
-                })();
-            
+});

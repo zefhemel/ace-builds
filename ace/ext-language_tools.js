@@ -423,8 +423,11 @@ var SnippetManager = function() {
     this.insertSnippet = function(editor, snippetText) {
         var cursor = editor.getCursorPosition();
         var line = editor.session.getLine(cursor.row);
-        var indentString = line.match(/^\s*/)[0];
         var tabString = editor.session.getTabString();
+        var indentString = line.match(/^\s*/)[0];
+        
+        if (cursor.column < indentString.length)
+            indentString = indentString.slice(0, cursor.column);
 
         var tokens = this.tokenizeTmSnippet(snippetText);
         tokens = this.resolveVariables(tokens, editor);
@@ -1751,8 +1754,3 @@ define('ace/autocomplete/text_completer', ['require', 'exports', 'module' , 'ace
         }));
     };
 });
-;
-                (function() {
-                    window.require(["ace/ext/language_tools"], function() {});
-                })();
-            

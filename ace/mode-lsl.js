@@ -28,10 +28,9 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-define('ace/mode/lsl', ['require', 'exports', 'module' , 'ace/tokenizer', 'ace/mode/lsl_highlight_rules', 'ace/mode/matching_brace_outdent', 'ace/range', 'ace/mode/text', 'ace/mode/behaviour/cstyle', 'ace/mode/folding/cstyle', 'ace/lib/oop'], function(require, exports, module) {
+define('ace/mode/lsl', ['require', 'exports', 'module' , 'ace/mode/lsl_highlight_rules', 'ace/mode/matching_brace_outdent', 'ace/range', 'ace/mode/text', 'ace/mode/behaviour/cstyle', 'ace/mode/folding/cstyle', 'ace/lib/oop'], function(require, exports, module) {
 
 
-var Tokenizer = require("../tokenizer").Tokenizer;
 var Rules = require("./lsl_highlight_rules").LSLHighlightRules;
 var Outdent = require("./matching_brace_outdent").MatchingBraceOutdent;
 var Range = require("../range").Range;
