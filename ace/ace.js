@@ -8931,7 +8931,7 @@ var TextHighlightRules = function() {
                         args = args.filter(function(x) {return !x.next;});
                     state.splice.apply(state, args);
                     i--;
-                    toInsert = null
+                    toInsert = null;
                 }
                 
                 if (rule.keywordMap) {
@@ -8941,7 +8941,7 @@ var TextHighlightRules = function() {
                     delete rule.defaultToken;
                 }
             }
-        };
+        }
         Object.keys(rules).forEach(processState, this);
     };
 
@@ -8963,7 +8963,7 @@ var TextHighlightRules = function() {
         return ignoreCase
             ? function(value) {return keywords[value.toLowerCase()] || defaultToken }
             : function(value) {return keywords[value] || defaultToken };
-    }
+    };
 
     this.getKeywords = function() {
         return this.$keywords;
