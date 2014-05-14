@@ -170,3 +170,8 @@ module.exports = {
 
 });
 
+;
+                (function() {
+                    window.require(["ace/ext/modelist"], function() {});
+                })();
+            

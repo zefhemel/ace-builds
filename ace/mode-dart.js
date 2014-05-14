@@ -844,10 +844,11 @@ oop.inherits(FoldMode, BaseFoldMode);
 });
 
 
-define('ace/mode/dart_highlight_rules', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/text_highlight_rules'], function(require, exports, module) {
+define('ace/mode/dart_highlight_rules', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/doc_comment_highlight_rules', 'ace/mode/text_highlight_rules'], function(require, exports, module) {
 
 
 var oop = require("../lib/oop");
+var DocCommentHighlightRules = require("./doc_comment_highlight_rules").DocCommentHighlightRules;
 var TextHighlightRules = require("./text_highlight_rules").TextHighlightRules;
 
 var DartHighlightRules = function() {
@@ -880,6 +881,7 @@ var DartHighlightRules = function() {
             token : "comment",
             regex : /\/\/.*$/
         },
+        DocCommentHighlightRules.getStartRule("doc-start"),
         {
             token : "comment", // multi line comment
             regex : /\/\*/,
@@ -1013,6 +1015,8 @@ var DartHighlightRules = function() {
         }, stringfill]
 }
 
+    this.embedRules(DocCommentHighlightRules, "doc-",
+        [ DocCommentHighlightRules.getEndRule("start") ]);
 };
 
 oop.inherits(DartHighlightRules, TextHighlightRules);
