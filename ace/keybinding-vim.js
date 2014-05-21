@@ -113,23 +113,24 @@ exports.handler = {
             return null;
         
         var editor = data.editor;
+        var vimState = data.vimState || "start";
         
         if (hashId == 1)
             key = "ctrl-" + key;
         if (key == "ctrl-c") {
             if (!useragent.isMac && editor.getCopyText()) {
                 editor.once("copy", function() {
-                    if (data.state == "start")
+                    if (vimState == "start")
                         coreCommands.stop.exec(editor);
                     else
                         editor.selection.clearSelection();
                 });
                 return {command: "null", passEvent: true};
             }
-            return {command: coreCommands.stop};            
+            return {command: coreCommands.stop};
         } else if ((key == "esc" && hashId === 0) || key == "ctrl-[") {
             return {command: coreCommands.stop};
-        } else if (data.state == "start") {
+        } else if (vimState == "start") {
             if (useragent.isMac && this.handleMacRepeat(data, hashId, key)) {
                 hashId = -1;
                 key = data.inputChar;
@@ -798,7 +799,7 @@ module.exports = {
 
         editor.setOverwrite(false);
         editor.keyBinding.$data.buffer = "";
-        editor.keyBinding.$data.state = "insertMode";
+        editor.keyBinding.$data.vimState = "insertMode";
         this.onVisualMode = false;
         this.onVisualLineMode = false;
         if(this.onInsertReplaySequence) {
@@ -828,7 +829,7 @@ module.exports = {
 
         editor.setOverwrite(true);
         editor.keyBinding.$data.buffer = "";
-        editor.keyBinding.$data.state = "start";
+        editor.keyBinding.$data.vimState = "start";
         this.onVisualMode = false;
         this.onVisualLineMode = false;
         editor._emit("changeStatus");

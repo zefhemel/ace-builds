@@ -4474,7 +4474,7 @@ exports.parForEach = function(array, fn, callback) {
     }
 };
 
-var ID_REGEX = /[a-zA-Z_0-9\$-\u007F-\uFFFF]/;
+var ID_REGEX = /[a-zA-Z_0-9\$\-\u00A2-\uFFFF]/;
 
 exports.retrievePrecedingIdentifier = function(text, pos, regex) {
     regex = regex || ID_REGEX;
@@ -4687,7 +4687,6 @@ require("../config").defineOptions(Editor.prototype, "editor", {
         set: function(val) {
             if (val) {
                 this.completers = Array.isArray(val)? val: completers;
-                this.completers = completers;
                 this.commands.on('afterExec', doLiveAutocomplete);
             } else {
                 this.commands.removeListener('afterExec', doLiveAutocomplete);
