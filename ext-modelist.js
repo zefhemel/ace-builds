@@ -139,7 +139,7 @@ var supportedModes = {
     Twig:        ["twig"],
     Typescript:  ["ts|typescript|str"],
     Vala:        ["vala"],
-    VBScript:    ["vbs"],
+    VBScript:    ["vbs|vb"],
     Velocity:    ["vm"],
     Verilog:     ["v|vh|sv|svh"],
     XML:         ["xml|rdf|rss|wsdl|xslt|atom|mathml|mml|xul|xbl"],
@@ -151,7 +151,7 @@ var nameOverrides = {
     ObjectiveC: "Objective-C",
     CSharp: "C#",
     golang: "Go",
-    C_Cpp: "C/C++",
+    C_Cpp: "C and C++",
     coffee: "CoffeeScript",
     HTML_Ruby: "HTML (Ruby)",
     FTL: "FreeMarker"
