@@ -118,6 +118,7 @@ var supportedModes = {
     EJS:         ["ejs"],
     Forth:       ["frt|fs|ldr"],
     FTL:         ["ftl"],
+    Gcode:       ["gcode"],
     Gherkin:     ["feature"],
     Gitignore:   ["^.gitignore"],
     Glsl:        ["glsl|frag|vert"],
