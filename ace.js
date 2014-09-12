@@ -2915,7 +2915,7 @@ function DragdropHandler(mouseHandler) {
         dataTransfer.effectAllowed = editor.getReadOnly() ? "copy" : "copyMove";
         if (useragent.isOpera) {
             editor.container.appendChild(blankImage);
-            blankImage._top = blankImage.offsetTop;
+            blankImage.scrollTop = 0;
         }
         dataTransfer.setDragImage && dataTransfer.setDragImage(blankImage, 0, 0);
         if (useragent.isOpera) {
@@ -2944,6 +2944,8 @@ function DragdropHandler(mouseHandler) {
     this.onDragEnter = function(e) {
         if (editor.getReadOnly() || !canAccept(e.dataTransfer))
             return;
+        x = e.clientX;
+        y = e.clientY;
         if (!dragSelectionMarker)
             addDragMarker();
         counter++;
@@ -2954,14 +2956,14 @@ function DragdropHandler(mouseHandler) {
     this.onDragOver = function(e) {
         if (editor.getReadOnly() || !canAccept(e.dataTransfer))
             return;
+        x = e.clientX;
+        y = e.clientY;
         if (!dragSelectionMarker) {
             addDragMarker();
             counter++;
         }
         if (onMouseMoveTimer !== null)
             onMouseMoveTimer = null;
-        x = e.clientX;
-        y = e.clientY;
 
         e.dataTransfer.dropEffect = dragOperation = getDropEffect(e);
         return event.preventDefault(e);
@@ -2977,7 +2979,7 @@ function DragdropHandler(mouseHandler) {
     };
 
     this.onDrop = function(e) {
-        if (!dragSelectionMarker)
+        if (!dragCursor)
             return;
         var dataTransfer = e.dataTransfer;
         if (isInternal) {
@@ -3088,6 +3090,7 @@ function DragdropHandler(mouseHandler) {
         if (editor.isFocused())
             editor.renderer.$cursorLayer.setBlinking(false);
         clearInterval(timerId);
+        onDragInterval();
         timerId = setInterval(onDragInterval, 20);
         counter = 0;
         event.addListener(document, "mousemove", onMouseMove);
@@ -3103,6 +3106,7 @@ function DragdropHandler(mouseHandler) {
         if (editor.isFocused() && !isInternal)
             editor.renderer.$cursorLayer.setBlinking(!editor.getReadOnly());
         range = null;
+        dragCursor = null;
         counter = 0;
         autoScrollStartTime = null;
         cursorMovedTime = null;
@@ -3448,6 +3452,10 @@ exports.moduleUrl = function(name, component) {
     component = component || parts[parts.length - 2] || "";
     var sep = component == "snippets" ? "/" : "-";
     var base = parts[parts.length - 1];
+    if (component == "worker" && sep == "-") {
+        var re = new RegExp("^" + component + "[\\-_]|[\\-_]" + component + "$", "g");
+        base = base.replace(re, "");
+    }
 
     if ((!base || base == component) && parts.length > 1)
         base = parts[parts.length - 2];
@@ -5003,6 +5011,10 @@ var Tokenizer = function(rules) {
         if (startState && typeof startState != "string") {
             var stack = startState.slice(0);
             startState = stack[0];
+            if (startState === "#tmp") {
+                stack.shift()
+                startState = stack.shift()
+            }
         } else
             var stack = [];
 
@@ -5051,8 +5063,6 @@ var Tokenizer = function(rules) {
 
                 if (rule.next) {
                     if (typeof rule.next == "string") {
-                        if (stack.length && stack[0] == currentState && stack[1] == rule.next)
-                            stack.shift();
                         currentState = rule.next;
                     } else {
                         currentState = rule.next(currentState, stack);
@@ -5115,7 +5125,7 @@ var Tokenizer = function(rules) {
         
         if (stack.length > 1) {
             if (stack[0] !== currentState)
-                stack.unshift(currentState);
+                stack.unshift("#tmp", currentState);
         }
         return {
             tokens : tokens,
@@ -5157,7 +5167,7 @@ var TextHighlightRules = function() {
             var state = rules[key];
             for (var i = 0; i < state.length; i++) {
                 var rule = state[i];
-                if (rule.next) {
+                if (rule.next || rule.onMatch) {
                     if (typeof rule.next != "string") {
                         if (rule.nextState && rule.nextState.indexOf(prefix) !== 0)
                             rule.nextState = prefix + rule.nextState;
@@ -5165,7 +5175,6 @@ var TextHighlightRules = function() {
                         if (rule.next.indexOf(prefix) !== 0)
                             rule.next = prefix + rule.next;
                     }
-
                 }
             }
             this.$rules[prefix + key] = state;
@@ -7921,6 +7930,7 @@ function BracketMatch() {
             typeRe = new RegExp(
                 "(\\.?" +
                 token.type.replace(".", "\\.").replace("rparen", ".paren")
+                    .replace(/\b(?:end|start|begin)\b/, "")
                 + ")+"
             );
         }
@@ -7972,6 +7982,7 @@ function BracketMatch() {
             typeRe = new RegExp(
                 "(\\.?" +
                 token.type.replace(".", "\\.").replace("lparen", ".paren")
+                    .replace(/\b(?:end|start|begin)\b/, "")
                 + ")+"
             );
         }
@@ -8552,17 +8563,13 @@ var EditSession = function(text, mode) {
     };
 
     this.$startWorker = function() {
-        if (typeof Worker !== "undefined" && !require.noWorker) {
-            try {
-                this.$worker = this.$mode.createWorker(this);
-            } catch (e) {
-                console.log("Could not load worker");
-                console.log(e);
-                this.$worker = null;
-            }
-        }
-        else
+        try {
+            this.$worker = this.$mode.createWorker(this);
+        } catch (e) {
+            console.log("Could not load worker");
+            console.log(e);
             this.$worker = null;
+        }
     };
     this.getMode = function() {
         return this.$mode;
@@ -15244,6 +15251,11 @@ var VirtualRenderer = function(container, theme) {
             changes & this.CHANGE_H_SCROLL
         ) {
             changes |= this.$computeLayerConfig();
+            if (config.firstRow != this.layerConfig.firstRow && config.firstRowScreen == this.layerConfig.firstRowScreen) {
+                this.scrollTop = this.scrollTop + (config.firstRow - this.layerConfig.firstRow) * this.lineHeight;
+                changes = changes | this.CHANGE_SCROLL;
+                changes |= this.$computeLayerConfig();
+            }
             config = this.layerConfig;
             this.$updateScrollBarV();
             if (changes & this.CHANGE_H_SCROLL)
@@ -17881,9 +17893,9 @@ exports.LineWidgets = LineWidgets;
 
 define("ace/ext/error_marker",["require","exports","module","ace/line_widgets","ace/lib/dom","ace/range"], function(require, exports, module) {
 "use strict";
-var LineWidgets = require("ace/line_widgets").LineWidgets;
-var dom = require("ace/lib/dom");
-var Range = require("ace/range").Range;
+var LineWidgets = require("../line_widgets").LineWidgets;
+var dom = require("../lib/dom");
+var Range = require("../range").Range;
 
 function binarySearch(array, needle, comparator) {
     var first = 0;
@@ -18120,6 +18132,7 @@ exports.edit = function(el) {
     event.addListener(window, "resize", env.onResize);
     editor.on("destroy", function() {
         event.removeListener(window, "resize", env.onResize);
+        env.editor.container.env = null; // prevent memory leak on old ie
     });
     editor.container.env = editor.env = env;
     return editor;

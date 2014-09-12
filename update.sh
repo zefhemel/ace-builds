@@ -7,5 +7,6 @@ npm install
 ./Makefile.dryice.js normal
 mv build/src/* ../
 cd ..
+rm -rf ace-master
 rm -rf snippets
 rm worker-* theme-*
