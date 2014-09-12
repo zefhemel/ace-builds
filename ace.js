@@ -15251,11 +15251,6 @@ var VirtualRenderer = function(container, theme) {
             changes & this.CHANGE_H_SCROLL
         ) {
             changes |= this.$computeLayerConfig();
-            if (config.firstRow != this.layerConfig.firstRow && config.firstRowScreen == this.layerConfig.firstRowScreen) {
-                this.scrollTop = this.scrollTop + (config.firstRow - this.layerConfig.firstRow) * this.lineHeight;
-                changes = changes | this.CHANGE_SCROLL;
-                changes |= this.$computeLayerConfig();
-            }
             config = this.layerConfig;
             this.$updateScrollBarV();
             if (changes & this.CHANGE_H_SCROLL)
