@@ -35,6 +35,7 @@ Mode.prototype.supportsFile = function(filename) {
 };
 var supportedModes = {
     ABAP:        ["abap"],
+    ABC:         ["abc"],
     ActionScript:["as"],
     ADA:         ["ada|adb"],
     Apache_Conf: ["^htaccess|^htgroups|^htpasswd|^conf|htaccess|htgroups|htpasswd"],
@@ -57,8 +58,12 @@ var supportedModes = {
     Diff:        ["diff|patch"],
     Dockerfile:  ["^Dockerfile"],
     Dot:         ["dot"],
+    Dummy:       ["dummy"],
+    DummySyntax: ["dummy"],
     Eiffel:      ["e"],
     EJS:         ["ejs"],
+    Elixir:      ["ex|exs"],
+    Elm:         ["elm"],
     Erlang:      ["erl|hrl"],
     Forth:       ["frt|fs|ldr"],
     FTL:         ["ftl"],
@@ -97,6 +102,7 @@ var supportedModes = {
     Lucene:      ["lucene"],
     Makefile:    ["^Makefile|^GNUmakefile|^makefile|^OCamlMakefile|make"],
     Markdown:    ["md|markdown"],
+    Mask:        ["mask"],
     MATLAB:      ["matlab"],
     MEL:         ["mel"],
     MUSHCode:    ["mc|mush"],
@@ -176,7 +182,6 @@ module.exports = {
 };
 
 });
-;
                 (function() {
                     window.require(["ace/ext/modelist"], function() {});
                 })();

@@ -9,7 +9,6 @@ font-size: 12px;\
 }\
 .ace_static_highlight .ace_gutter {\
 width: 25px !important;\
-display: block;\
 float: left;\
 text-align: right;\
 padding: 0 3px 0 0;\
@@ -149,7 +148,6 @@ highlight.renderSync = function(input, mode, theme, lineStart, disableGutter) {
 module.exports = highlight;
 module.exports.highlight =highlight;
 });
-;
                 (function() {
                     window.require(["ace/ext/static_highlight"], function() {});
                 })();

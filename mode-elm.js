@@ -1,84 +1,132 @@
-define("ace/mode/io_highlight_rules",["require","exports","module","ace/lib/oop","ace/mode/text_highlight_rules"], function(require, exports, module) {
+define("ace/mode/elm_highlight_rules",["require","exports","module","ace/lib/oop","ace/mode/text_highlight_rules"], function(require, exports, module) {
 "use strict";
 
 var oop = require("../lib/oop");
 var TextHighlightRules = require("./text_highlight_rules").TextHighlightRules;
 
-var IoHighlightRules = function() {
+var ElmHighlightRules = function() {
+    var keywordMapper = this.createKeywordMapper({
+       "keyword": "as|case|class|data|default|deriving|do|else|export|foreign|" +
+            "hiding|jsevent|if|import|in|infix|infixl|infixr|instance|let|" +
+            "module|newtype|of|open|then|type|where|_|port|\u03BB"
+    }, "identifier");
+    
+    var escapeRe = /\\(\d+|['"\\&trnbvf])/;
+    
+    var smallRe = /[a-z_]/.source;
+    var largeRe = /[A-Z]/.source;
+    var idRe = /[a-z_A-Z0-9\']/.source;
 
-    this.$rules = { start: 
-       [ { token: [ 'text', 'meta.empty-parenthesis.io' ],
-           regex: '(\\()(\\))',
-           comment: 'we match this to overload return inside () --Allan; scoping rules for what gets the scope have changed, so we now group the ) instead of the ( -- Rob' },
-         { token: [ 'text', 'meta.comma-parenthesis.io' ],
-           regex: '(\\,)(\\))',
-           comment: 'We want to do the same for ,) -- Seckar; same as above -- Rob' },
-         { token: 'keyword.control.io',
-           regex: '\\b(?:if|ifTrue|ifFalse|ifTrueIfFalse|for|loop|reverseForeach|foreach|map|continue|break|while|do|return)\\b' },
-         { token: 'punctuation.definition.comment.io',
-           regex: '/\\*',
-           push: 
-            [ { token: 'punctuation.definition.comment.io',
-                regex: '\\*/',
-                next: 'pop' },
-              { defaultToken: 'comment.block.io' } ] },
-         { token: 'punctuation.definition.comment.io',
-           regex: '//',
-           push: 
-            [ { token: 'comment.line.double-slash.io',
-                regex: '$',
-                next: 'pop' },
-              { defaultToken: 'comment.line.double-slash.io' } ] },
-         { token: 'punctuation.definition.comment.io',
-           regex: '#',
-           push: 
-            [ { token: 'comment.line.number-sign.io', regex: '$', next: 'pop' },
-              { defaultToken: 'comment.line.number-sign.io' } ] },
-         { token: 'variable.language.io',
-           regex: '\\b(?:self|sender|target|proto|protos|parent)\\b',
-           comment: 'I wonder if some of this isn\'t variable.other.language? --Allan; scoping this as variable.language to match Objective-C\'s handling of \'self\', which is inconsistent with C++\'s handling of \'this\' but perhaps intentionally so -- Rob' },
-         { token: 'keyword.operator.io',
-           regex: '<=|>=|=|:=|\\*|\\||\\|\\||\\+|-|/|&|&&|>|<|\\?|@|@@|\\b(?:and|or)\\b' },
-         { token: 'constant.other.io', regex: '\\bGL[\\w_]+\\b' },
-         { token: 'support.class.io', regex: '\\b[A-Z](?:\\w+)?\\b' },
-         { token: 'support.function.io',
-           regex: '\\b(?:clone|call|init|method|list|vector|block|\\w+(?=\\s*\\())\\b' },
-         { token: 'support.function.open-gl.io',
-           regex: '\\bgl(?:u|ut)?[A-Z]\\w+\\b' },
-         { token: 'punctuation.definition.string.begin.io',
-           regex: '"""',
-           push: 
-            [ { token: 'punctuation.definition.string.end.io',
-                regex: '"""',
-                next: 'pop' },
-              { token: 'constant.character.escape.io', regex: '\\\\.' },
-              { defaultToken: 'string.quoted.triple.io' } ] },
-         { token: 'punctuation.definition.string.begin.io',
-           regex: '"',
-           push: 
-            [ { token: 'punctuation.definition.string.end.io',
-                regex: '"',
-                next: 'pop' },
-              { token: 'constant.character.escape.io', regex: '\\\\.' },
-              { defaultToken: 'string.quoted.double.io' } ] },
-         { token: 'constant.numeric.io',
-           regex: '\\b(?:0(?:x|X)[0-9a-fA-F]*|(?:[0-9]+\\.?[0-9]*|\\.[0-9]+)(?:(?:e|E)(?:\\+|-)?[0-9]+)?)(?:L|l|UL|ul|u|U|F|f)?\\b' },
-         { token: 'variable.other.global.io', regex: 'Lobby\\b' },
-         { token: 'constant.language.io',
-           regex: '\\b(?:TRUE|true|FALSE|false|NULL|null|Null|Nil|nil|YES|NO)\\b' } ] }
+    this.$rules = {
+        start: [{
+            token: "string.start",
+            regex: '"',
+            next: "string"
+        }, {
+            token: "string.character",
+            regex: "'(?:" + escapeRe.source + "|.)'?"
+        }, {
+            regex: /0(?:[xX][0-9A-Fa-f]+|[oO][0-7]+)|\d+(\.\d+)?([eE][-+]?\d*)?/,
+            token: "constant.numeric"
+        }, {
+            token : "keyword",
+            regex : /\.\.|\||:|=|\\|\"|->|<-|\u2192/
+        }, {
+            token : "keyword.operator",
+            regex : /[-!#$%&*+.\/<=>?@\\^|~:\u03BB\u2192]+/
+        }, {
+            token : "operator.punctuation",
+            regex : /[,;`]/
+        }, {
+            regex : largeRe + idRe + "+\\.?",
+            token : function(value) {
+                if (value[value.length - 1] == ".")
+                    return "entity.name.function"; 
+                return "constant.language"; 
+            }
+        }, {
+            regex : "^" + smallRe  + idRe + "+",
+            token : function(value) {
+                return "constant.language"; 
+            }
+        }, {
+            token : keywordMapper,
+            regex : "[\\w\\xff-\\u218e\\u2455-\\uffff]+\\b"
+        }, {
+            regex: "{-#?",
+            token: "comment.start",
+            onMatch: function(value, currentState, stack) {
+                this.next = value.length == 2 ? "blockComment" : "docComment";
+                return this.token;
+            }
+        }, {
+            token: "variable.language",
+            regex: /\[markdown\|/,
+            next: "markdown"
+        }, {
+            token: "paren.lparen",
+            regex: /[\[({]/ 
+        }, {
+            token: "paren.rparen",
+            regex: /[\])}]/
+        }, ],
+        markdown: [{
+            regex: /\|\]/,
+            next: "start"
+        }, {
+            defaultToken : "string"
+        }],
+        blockComment: [{
+            regex: "{-",
+            token: "comment.start",
+            push: "blockComment"
+        }, {
+            regex: "-}",
+            token: "comment.end",
+            next: "pop"
+        }, {
+            defaultToken: "comment"
+        }],
+        docComment: [{
+            regex: "{-",
+            token: "comment.start",
+            push: "docComment"
+        }, {
+            regex: "-}",
+            token: "comment.end",
+            next: "pop" 
+        }, {
+            defaultToken: "doc.comment"
+        }],
+        string: [{
+            token: "constant.language.escape",
+            regex: escapeRe,
+        }, {
+            token: "text",
+            regex: /\\(\s|$)/,
+            next: "stringGap"
+        }, {
+            token: "string.end",
+            regex: '"',
+            next: "start"
+        }],
+        stringGap: [{
+            token: "text",
+            regex: /\\/,
+            next: "string"
+        }, {
+            token: "error",
+            regex: "",
+            next: "start"
+        }],
+    };
     
     this.normalizeRules();
 };
 
-IoHighlightRules.metaData = { fileTypes: [ 'io' ],
-      keyEquivalent: '^~I',
-      name: 'Io',
-      scopeName: 'source.io' }
+oop.inherits(ElmHighlightRules, TextHighlightRules);
 
-
-oop.inherits(IoHighlightRules, TextHighlightRules);
-
-exports.IoHighlightRules = IoHighlightRules;
+exports.ElmHighlightRules = ElmHighlightRules;
 });
 
 define("ace/mode/folding/cstyle",["require","exports","module","ace/lib/oop","ace/range","ace/mode/folding/fold_mode"], function(require, exports, module) {
@@ -222,25 +270,24 @@ oop.inherits(FoldMode, BaseFoldMode);
 
 });
 
-define("ace/mode/io",["require","exports","module","ace/lib/oop","ace/mode/text","ace/tokenizer","ace/mode/io_highlight_rules","ace/mode/folding/cstyle"], function(require, exports, module) {
+define("ace/mode/elm",["require","exports","module","ace/lib/oop","ace/mode/text","ace/mode/elm_highlight_rules","ace/mode/folding/cstyle"], function(require, exports, module) {
 "use strict";
 
 var oop = require("../lib/oop");
 var TextMode = require("./text").Mode;
-var Tokenizer = require("../tokenizer").Tokenizer;
-var IoHighlightRules = require("./io_highlight_rules").IoHighlightRules;
+var HighlightRules = require("./elm_highlight_rules").ElmHighlightRules;
 var FoldMode = require("./folding/cstyle").FoldMode;
 
 var Mode = function() {
-    this.HighlightRules = IoHighlightRules;
+    this.HighlightRules = HighlightRules;
     this.foldingRules = new FoldMode();
 };
 oop.inherits(Mode, TextMode);
 
 (function() {
-    this.lineCommentStart = "//";
-    this.blockComment = {start: "/*", end: "*/"};
-    this.$id = "ace/mode/io"
+    this.lineCommentStart = "--";
+    this.blockComment = {start: "{-", end: "-}"};
+    this.$id = "ace/mode/elm";
 }).call(Mode.prototype);
 
 exports.Mode = Mode;
